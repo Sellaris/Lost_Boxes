@@ -104,6 +104,20 @@ int main(){
         showSidebar();
         mainWindow.display();
     }
+    
+    // 获取最终比分
+    int black_score = gameBoard->BOX_of_BLACK;
+    int white_score = gameBoard->BOX_of_WHITE;
+    // 判断胜负
+    int winner = BLACK;
+    if (white_score > black_score) {winner = WHITE;}
+    // 输出结果信息
+    std::cout << "胜方：" 
+            << (winner == BLACK ? "先手（BLACK）": "后手（WHITE）")
+            << "，比分：" 
+            << black_score << "-" << white_score 
+            << std::endl;
+
     return 0;
 }
 

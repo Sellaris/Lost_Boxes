@@ -290,7 +290,8 @@ void Move_UCT_TT(Board& cb, int player, std::vector<POS>& pace, int total_moves)
         }
     }
     int UCT__LIMIT_TIME = total_moves < 10 ? UCT__LIMIT_TIME1 :
-    (total_moves < 20 ? UCT__LIMIT_TIME2 : UCT__LIMIT_TIME3); // 根据总移动数调整时间限制
+    (total_moves < 20 ? UCT__LIMIT_TIME2 : 
+    (total_moves < 30 ?UCT__LIMIT_TIME3 : UCT__LIMIT_TIME4 )); // 根据总移动数调整时间限制
     if (root_node->Board_Winner == 0 && root_node->Total_Child > 0) {
         int total_sims = 0;
         clock_t start = clock();

@@ -153,7 +153,8 @@ float Process_UCT(Node&B,int&Total){
 void Move_UCT(Board&CB,int Player,vector<POS>&pace, int total_moves){
     Node UCT_B(Player,CB._MAP_,true);
     int UCT__LIMIT_TIME = total_moves < 10 ? UCT__LIMIT_TIME1 :
-    (total_moves < 20 ? UCT__LIMIT_TIME2 : UCT__LIMIT_TIME3); // 根据总移动数调整时间限制
+    (total_moves < 20 ? UCT__LIMIT_TIME2 : 
+    (total_moves < 30 ?UCT__LIMIT_TIME3 : UCT__LIMIT_TIME4 )); // 根据总移动数调整时间限制
 
     if(UCT_B.Board_Winner==0){
         int Total=0;
