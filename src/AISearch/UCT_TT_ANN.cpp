@@ -10,6 +10,11 @@
 #include <thread>
 #include <iostream>
 #include <cmath>
+extern "C" {
+  #include "fann.h"
+}
+#include "FeatureExtractor.h"
+#include "ANN.h"
 
 // 为TT_ANN版本的UCT提供独立的线程局部随机数生成器
 thread_local std::mt19937_64 rng_tt_ANN(std::chrono::system_clock::now().time_since_epoch().count());
@@ -147,7 +152,10 @@ float Evalution_TAKE_Filter_OF_MC_TT_ANN(Board&CB,int NextPlayer,int _Winner){
         threads.emplace_back(std::thread(multi_thread_func_tt,std::ref(_MCB),std::ref(_MCE),NextPlayer,_Winner,UCT__TIMES__MC,i));
     }
     for(auto&th:threads)th.join();
-    return static_cast<float>(_MCE.load())/static_cast<float>(UCT__TIMES__MC);
+    std::vector<fann_type> input(25, 0.5f);
+    //std::vector<fann_type> input = extract_features(CB, NextPlayer);
+    float output = processANN(input);//test
+    return output;
 }
 
 /**
@@ -185,7 +193,8 @@ Node* expand_UCT_Node_TT_ANN(Node& parent_node) {
     // 使用蒙特卡洛模拟进行初始评估
     Board eval_board(child_node->_MAP_);
     float eval_score = Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
-    child_node->_Avg_Value = (eval_score + 13.0f) / 26.0f;
+    std::cout<<eval_score<<"\n";
+    child_node->_Avg_Value = eval_score/2 +0.5f;
 
     // 存入内存池和置换表
     g_node_pool.push_back(std::move(new_node_ptr));

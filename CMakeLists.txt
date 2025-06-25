@@ -24,6 +24,12 @@ file(GLOB_RECURSE SOURCES
         src/*.c
         src/*.h
 )
+find_path(FANN_INCLUDE_DIR fann.h PATHS "C:/Program Files (x86)/FANN/include")
+find_library(FANN_LIBRARY NAMES fann PATHS "C:/Program Files (x86)/FANN")
+include_directories(${FANN_INCLUDE_DIR})
+link_libraries(${FANN_LIBRARY})
+
+
 add_executable(dots_and_boxes ${SOURCES})
 
 target_link_libraries(dots_and_boxes
