@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <thread>
 #include <fstream>
+#include "AISearch/UCT_TT_ANN.h"
 #include "AISearch/UCT_TT.h"
 
 std::string BlackName="先手";
@@ -28,7 +29,7 @@ Time black_time;
 Time white_time;
 
 // 替换原有模式变量，使用枚举管理
-enum PlayerMode{HUMAN_MODE=0,AI_OLD_MODE=1,AI_NEW_MODE=2};
+enum PlayerMode{HUMAN_MODE=0,AI_OLD_MODE=1,AI_NEW_MODE=2,AI_ANN_MODE=3};
 PlayerMode black_mode=HUMAN_MODE;
 PlayerMode white_mode=HUMAN_MODE;
 
@@ -311,15 +312,19 @@ void showSetPlayer(){
     sf::Text first_human_text(L"玩家",font,40);
     sf::Text first_ai_old_text(L"旧机",font,40);
     sf::Text first_ai_new_text(L"新机",font,40);
+    sf::Text first_ai_ann_text(L"ANN",font,40);
     sf::Text second_human_text(L"玩家",font,40);
     sf::Text second_ai_old_text(L"旧机",font,40);
     sf::Text second_ai_new_text(L"新机",font,40);
+    sf::Text second_ai_ann_text(L"ANN",font,40);
     first_human_text.setPosition(1110,260);
     first_ai_old_text.setPosition(1110,260);
     first_ai_new_text.setPosition(1110,260);
+    first_ai_ann_text.setPosition(1110,260);
     second_human_text.setPosition(1310,260);
     second_ai_old_text.setPosition(1310,260);
     second_ai_new_text.setPosition(1310,260);
+    second_ai_ann_text.setPosition(1310,260);
 
     // 先手按钮
     switch(black_mode){
@@ -337,6 +342,11 @@ void showSetPlayer(){
             first_button.setFillColor(sf::Color(46,125,50));
             mainWindow.draw(first_button);
             mainWindow.draw(first_ai_new_text);
+            break;        
+        case AI_ANN_MODE:
+            first_button.setFillColor(sf::Color(46,125,50));
+            mainWindow.draw(first_button);
+            mainWindow.draw(first_ai_ann_text);
             break;
     }
     // 后手按钮
@@ -355,6 +365,11 @@ void showSetPlayer(){
             second_button.setFillColor(sf::Color(46,125,50));
             mainWindow.draw(second_button);
             mainWindow.draw(second_ai_new_text);
+            break;        
+        case AI_ANN_MODE:
+            second_button.setFillColor(sf::Color(46,125,50));
+            mainWindow.draw(second_button);
+            mainWindow.draw(second_ai_ann_text);
             break;
     }
 }
@@ -418,15 +433,19 @@ void AIMove(){
             ai_steps.clear();
             if(black_mode==AI_OLD_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
-            }else{
+            }else if (black_mode==AI_NEW_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+            }else if (black_mode==AI_ANN_MODE){
+                work = std::async(std::launch::async, Turn_Move_Game_TT_ANN, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
         }else if(nowPlayer==WHITE && white_mode!=HUMAN_MODE){
             ai_steps.clear();
             if(white_mode==AI_OLD_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
-            }else{
+            }else if (white_mode==AI_NEW_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+            }else if (white_mode==AI_ANN_MODE){
+                work = std::async(std::launch::async, Turn_Move_Game_TT_ANN, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
         }
     }
@@ -459,9 +478,9 @@ void AIMove(){
 // 处理点击右侧按钮的事件逻辑
 void handleButtons(int x,int y){
     if(contains(first_button,x,y)){
-        black_mode = static_cast<PlayerMode>((black_mode + 1) % 3);
+        black_mode = static_cast<PlayerMode>((black_mode + 1) % 4);
     }else if(contains(second_button,x,y)){
-        white_mode = static_cast<PlayerMode>((white_mode + 1) % 3);
+        white_mode = static_cast<PlayerMode>((white_mode + 1) % 4);
     }else if(contains(GameButton,x,y)){
         if(game_begin==1){
             delete gameBoard;
