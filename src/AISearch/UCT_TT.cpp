@@ -33,6 +33,13 @@ void Situation_Move_latter_TT(Board& CB, int Player, std::vector<POS>& pace, int
 int Filter_Turn_RAND_TT(Board&CB,int Player);
 float Evalution_TAKE_Filter_OF_MC_TT(Board&CB,int NextPlayer,int _Winner);
 
+std::atomic<int> tt_probes{0};      // 置换表查询次数
+std::atomic<int> tt_hits{0};         // 命中次数
+std::atomic<int> tt_inserts{0};      // 插入次数
+std::atomic<int64_t> tt_total_nodes{0}; // 总节点数
+std::atomic<int> tt_searches{0};     // 搜索次数
+
+
 // --- 核心工具函数 ---
 /**
  * @brief 为棋盘状态和玩家生成唯一的键。
@@ -149,6 +156,8 @@ float Evalution_TAKE_Filter_OF_MC_TT(Board&CB,int NextPlayer,int _Winner){
  * @return Node* 指向新的或已存在的子节点
  */
 Node* expand_UCT_Node_TT(Node& parent_node) {
+    ++tt_probes;
+
     // 模拟落子以获取子节点状态
     Board child_board(parent_node._MAP_);
     const POS& move_to_make = parent_node.Node_Moves[parent_node._Exist_Child];
@@ -165,6 +174,7 @@ Node* expand_UCT_Node_TT(Node& parent_node) {
     auto it = g_trans_table.find(key);
 
     if (it != g_trans_table.end()) {
+        ++tt_hits;
         return it->second; // 节点已存在，直接复用
     }
 
@@ -181,7 +191,28 @@ Node* expand_UCT_Node_TT(Node& parent_node) {
     g_node_pool.push_back(std::move(new_node_ptr));
     g_trans_table[key] = child_node;
 
+    ++tt_inserts;
+    tt_total_nodes += g_node_pool.size();
+
     return child_node;
+}
+// 新增打印函数
+void print_tt_stats() {
+    static int call_count = 0;
+    ++call_count;
+    
+    float hit_rate = tt_probes > 0 ? 
+        static_cast<float>(tt_hits) / tt_probes : 0.0f;
+    
+    int64_t total_simulations = 
+        static_cast<int64_t>(tt_searches.load()) * 
+        THREAD_COUNT ;
+    std::cerr << "[置换表状态]" << std::endl;
+    std::cerr << " 查询次数: " << tt_probes << std::endl;
+    std::cerr << " 命中次数: " << tt_hits << std::endl;
+    std::cerr << " 命中率: " << hit_rate * 100 << "%\n";
+    std::cerr << " 当前节点数: " << g_node_pool.size() << std::endl;
+    std::cerr << " 搜索次数 " << total_simulations << "\n\n";
 }
 
 /**
@@ -192,6 +223,10 @@ Node* expand_UCT_Node_TT(Node& parent_node) {
  */
 float Process_UCT_TT(Node& b, int& total) {
     b.Times++;
+
+    ++total;
+    ++tt_searches;
+
 
     if (b.Board_Winner != 0) {
         b._Avg_Value = (b.Board_Winner == b.Owner) ? 0.0f : 1.0f;
@@ -280,7 +315,9 @@ void Move_UCT_TT(Board& cb, int player, std::vector<POS>& pace, int total_moves)
         } else {
             // 如果由于某种原因没有可选的子节点（例如时间太短），则不走棋
         }
-    }
+    }    
+    print_tt_stats();
+
 }
 
 void _Sacrifice_Move_UCT_TT(Board&CB,int Player,vector<POS>&pace, int total_moves){
@@ -401,6 +438,14 @@ void Clear_UCT_TT() {
     std::lock_guard<std::mutex> lk(g_tt_mutex);
     g_trans_table.clear();
     g_node_pool.clear();
+    
+        // 重置调试统计
+    tt_probes = 0;
+    tt_hits = 0;
+    tt_inserts = 0;
+    tt_total_nodes = 0;
+    tt_searches = 0;
+    std::cerr << "[置换表已清空]" << std::endl;
 }
 
 void Turn_Move_Game_TT(Board &CB, int Player, int *status, std::vector<POS> &pace, int total_moves) {

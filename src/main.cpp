@@ -7,6 +7,7 @@
 #include <SFML/Graphics.hpp>
 #include <future>
 #include <iostream>
+#include <windows.h>
 #include <thread>
 #include <fstream>
 #include "AISearch/UCT_TT.h"
@@ -69,7 +70,8 @@ void AIMove();
 
 // 主函数：程序入口，初始化窗口与资源，进入主事件循环
 int main(){
-    mainWindow.create(sf::VideoMode(1500,1000),L"Heap Overflow 点格棋",sf::Style::Default);
+    SetConsoleOutputCP(65001); // 设置控制台输出为UTF-8
+    mainWindow.create(sf::VideoMode(1500,1000),L"Sela 点格棋",sf::Style::Default);
     mainWindow.setVerticalSyncEnabled(true);
     gameBoard=new Board;
     font.loadFromFile("res/LXGWWenKai-Bold.ttf");

@@ -4,6 +4,8 @@
 #ifndef DAB_DEFINE_H
 #define DAB_DEFINE_H
 #include <utility>
+#include <thread>
+
 //====================常量与类型定义====================
 // WAY: 四方向数组
 constexpr int WAY[4][2]={{1,0},{0,1},{-1,0},{0,-1}};
@@ -51,12 +53,12 @@ constexpr int _BOX_NUM=25;
 // UCT_参数
 constexpr int UCT__TIMES__MC=500;
 constexpr int UCT__ALL_TIMES=20000000;
-constexpr int UCT__LIMIT_TIME1=10;
-constexpr int UCT__LIMIT_TIME2=30;
-constexpr int UCT__LIMIT_TIME3=60;
+constexpr int UCT__LIMIT_TIME1=1;
+constexpr int UCT__LIMIT_TIME2=3;
+constexpr int UCT__LIMIT_TIME3=6;
 constexpr int UCT__RANGE_FILTER=30;
 
 // 多线程参数
-constexpr int THREAD_COUNT=10; // 新增线程数常量
+const int THREAD_COUNT=std::thread::hardware_concurrency(); // 新增线程数常量
 
 #endif
