@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
+#include <iomanip>
 #include <iostream>
 #include <cmath>
 extern "C" {
@@ -154,6 +155,9 @@ float Evalution_TAKE_Filter_OF_MC_TT_ANN(Board&CB,int NextPlayer,int _Winner){
     for(auto&th:threads)th.join();
     //std::vector<fann_type> input(25, 0.5f);
     std::vector<fann_type> input = extract_features(CB, NextPlayer);
+    std::cout<<"input: ";
+    for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
+    std::cout<<std::endl;
     float output = processANN(input);//test
     return output;
 }

@@ -1,316 +1,354 @@
 #include "FeatureExtractor.h"
+#include "board.h"
 #include <vector>
-#include <iostream>
+#include <numeric>
+#include <functional>
+#include <algorithm>
 
 namespace {
 
-// 辅助结构体，用于模拟Go代码中的节点
+// Corresponds to the Node struct in qboard.go
 struct Node {
-    int x, y;                  // 坐标
-    int degree;                // 节点的度数
-    bool ground;               // 是否是边界节点
-    std::vector<int> edges;    // 存储边的索引
+    int x, y, degree;
+    bool ground;
+    int edges[4]; // 0: up, 1: right, 2: down, 3: left
 };
 
-// 辅助结构体，用于模拟Go代码中的边
+// Corresponds to the Edge struct in qboard.go
 struct Edge {
-    int idx;                   // 边的索引
-    int node[2];               // 连接的两个节点索引
-    bool exist;                // 边是否存在
+    int idx;
+    bool cut;
+    int node_indices[2];
 };
 
-// 节点比较函数，比较两个节点的坐标顺序
-int nodeComp(const Node& a, const Node& b) {
-    if (a.x < b.x) return -1;  // 如果 a.x 小于 b.x，返回 -1
-    if (a.x > b.x) return 1;   // 如果 a.x 大于 b.x，返回 1
-    if (a.y < b.y) return -1;  // 如果 a.x 相等，比较 y 坐标
-    if (a.y > b.y) return 1;
-    return 0;  // 如果两个节点的坐标都相等，返回 0
+// Corresponds to the LinkState struct in qboard.go
+struct LinkState {
+    int ty = -1, length = 0;
+};
+
+// Helper for DSU data structure
+int find_set(int v, std::vector<int>& parent) {
+    if (v == parent[v])
+        return v;
+    return parent[v] = find_set(parent[v], parent);
 }
 
-// 重新构建图，简化节点和边的映射
-void buildGraph(const Board& board, std::vector<Node>& nodes, std::vector<Edge>& edges) {
-    const int grid_size = 6;  // 6x6网格
-    const int edge_count = (grid_size - 1) * grid_size * 2; // 水平和垂直边的数量
-    nodes.resize(grid_size * grid_size);
-    edges.resize(edge_count);
-
-    // 初始化节点
-    for (int i = 0; i < grid_size; ++i) {
-        for (int j = 0; j < grid_size; ++j) {
-            int idx = i * grid_size + j;
-            nodes[idx].x = i;
-            nodes[idx].y = j;
-            nodes[idx].degree = 0;
-            nodes[idx].ground = (i == 0 || i == grid_size - 1 || j == 0 || j == grid_size - 1);
-            nodes[idx].edges.clear();
-        }
-    }
-
-    int edge_idx = 0;
-
-    // 连接水平边
-    for (int i = 0; i < grid_size; ++i) {
-        for (int j = 0; j < grid_size - 1; ++j) {
-            int node1 = i * grid_size + j;
-            int node2 = i * grid_size + (j + 1);
-            edges[edge_idx] = {edge_idx, {node1, node2}, false};
-
-            // 检查水平边是否存在
-            int map_x = 2 * i;
-            int map_y = j + 1;
-            if (map_x < 11 && map_y < 11) {
-                edges[edge_idx].exist = (board._MAP_[map_x][map_y] == Horizon);
-            }
-            
-            // 更新节点度数
-            if (edges[edge_idx].exist) {
-                nodes[node1].degree++;
-                nodes[node2].degree++;
-            }
-
-            edge_idx++;
-        }
-    }
-
-    // 连接垂直边
-    for (int i = 0; i < grid_size - 1; ++i) {
-        for (int j = 0; j < grid_size; ++j) {
-            int node1 = i * grid_size + j;
-            int node2 = (i + 1) * grid_size + j;
-            edges[edge_idx] = {edge_idx, {node1, node2}, false};
-
-            // 检查垂直边是否存在
-            int map_x = j;
-            int map_y = 2 * (i + 1);
-            if (map_x < 11 && map_y < 11) {
-                edges[edge_idx].exist = (board._MAP_[map_x][map_y] == Vertical);
-            }
-            
-            // 更新节点度数
-            if (edges[edge_idx].exist) {
-                nodes[node1].degree++;
-                nodes[node2].degree++;
-            }
-
-            edge_idx++;
-        }
-    }
-
-    //std::cout << "Graph built successfully with " << nodes.size() << " nodes and " << edges.size() << " edges." << std::endl;
+void union_sets(int a, int b, std::vector<int>& parent) {
+    a = find_set(a, parent);
+    b = find_set(b, parent);
+    if (a != b)
+        parent[b] = a;
 }
 
-// 模拟Go代码的walkToEnd函数
-std::pair<std::vector<std::vector<int>>, std::vector<int>> walkToEnd(
-    const std::vector<Node>& nodes, const std::vector<Edge>& edges, int start_node) {
-    
+// walkToEnd from qboard.go
+auto walkToEnd(int start_node_idx, const std::vector<Node>& nodes, const std::vector<Edge>& edges, std::vector<bool>& visited_nodes) -> std::pair<std::vector<std::vector<int>>, std::vector<int>> {
     std::vector<std::vector<int>> buf;
-    std::vector<int> end_nodes;
-    
-    if (nodes[start_node].degree == 1) {
-        // 从度为1的节点开始遍历
-        std::vector<int> path;
-        std::vector<bool> visited(36, false);  // 6x6网格的节点数
+    std::vector<int> end_node_indices;
 
-        int current = start_node;
-        path.push_back(current);
-        visited[current] = true;
-        
-        while (nodes[current].degree < 3) {
-            bool found_next = false;
-            for (int edge_idx : nodes[current].edges) {
-                const Edge& edge = edges[edge_idx];
-                int next = (edge.node[0] == current) ? edge.node[1] : edge.node[0];
-                
-                if (!visited[next]) {
-                    if (nodes[next].degree == 1) {
-                        // 找到终点
-                        path.push_back(next);
-                        buf.push_back(path);
-                        end_nodes.push_back(next);
-                        found_next = true;
-                        break;
-                    } else if (nodes[next].degree == 2) {
-                        // 继续遍历
-                        current = next;
-                        path.push_back(current);
-                        visited[current] = true;
+    if (start_node_idx < 0 || start_node_idx >= 49) return {buf, end_node_indices};
+
+    const auto& s_node = nodes[start_node_idx];
+    for (int edge_idx : s_node.edges) {
+        if (edge_idx == -1 || edges[edge_idx].cut) continue;
+
+        const auto& edge = edges[edge_idx];
+        int other_node_idx = (edge.node_indices[0] == start_node_idx) ? edge.node_indices[1] : edge.node_indices[0];
+
+        if (other_node_idx >= 0 && other_node_idx < 49 && !visited_nodes[other_node_idx]) {
+            std::vector<int> current_path;
+            current_path.push_back(edge_idx);
+            
+            int prev_edge_idx = edge_idx;
+            int current_node_idx = other_node_idx;
+
+            while (nodes[current_node_idx].degree == 2) {
+                visited_nodes[current_node_idx] = true;
+                bool found_next = false;
+                for (int next_edge_idx : nodes[current_node_idx].edges) {
+                    if (next_edge_idx != -1 && next_edge_idx != prev_edge_idx && !edges[next_edge_idx].cut) {
+                        current_path.push_back(next_edge_idx);
+                        prev_edge_idx = next_edge_idx;
+                        int n0 = edges[next_edge_idx].node_indices[0];
+                        int n1 = edges[next_edge_idx].node_indices[1];
+                        current_node_idx = (n0 == current_node_idx) ? n1 : n0;
                         found_next = true;
                         break;
                     }
                 }
+                if (!found_next) break; 
             }
-            if (!found_next) break;
+            buf.push_back(current_path);
+            end_node_indices.push_back(current_node_idx);
         }
     }
-    
-    return {buf, end_nodes};
+    return {buf, end_node_indices};
 }
 
-// walkLoop a new version, returns the path of the loop. Returns an empty vector if no loop is found.
-std::vector<int> walkLoop(const std::vector<Node>& nodes, const std::vector<Edge>& edges, int start_node) {
-    if (nodes[start_node].degree != 2) return {};
+// walkLoop from qboard.go
+auto walkLoop(int start_node_idx, const std::vector<Node>& nodes, const std::vector<Edge>& edges, std::vector<bool>& visited_nodes) -> std::vector<int> {
+    std::vector<int> es;
+    if (start_node_idx < 0 || start_node_idx >= 49) return es;
 
-    std::vector<int> path;
-    std::vector<bool> visited_in_path(36, false);  // 6x6网格的节点数
+    const auto& s_node = nodes[start_node_idx];
+    visited_nodes[start_node_idx] = true;
 
-    int current = start_node;
-    
-    while (true) {
-        path.push_back(current);
-        visited_in_path[current] = true;
+    int first_edge_idx = -1;
+    for (int edge_idx : s_node.edges) {
+        if (edge_idx != -1 && !edges[edge_idx].cut) {
+            first_edge_idx = edge_idx;
+            break;
+        }
+    }
+    if (first_edge_idx == -1) return es;
 
+    es.push_back(first_edge_idx);
+    int prev_edge_idx = first_edge_idx;
+    int current_node_idx = (edges[first_edge_idx].node_indices[0] == start_node_idx) ? edges[first_edge_idx].node_indices[1] : edges[first_edge_idx].node_indices[0];
+
+    while(current_node_idx != start_node_idx && current_node_idx >= 0 && current_node_idx < 49) {
+        visited_nodes[current_node_idx] = true;
         bool found_next = false;
-        for (int edge_idx : nodes[current].edges) {
-            const Edge& edge = edges[edge_idx];
-            int next = (edge.node[0] == current) ? edge.node[1] : edge.node[0];
-            
-            // If we found the start node and it's not the immediate previous node, it's a loop.
-            if (next == start_node) {
-                if (path.size() > 2) {
-                    std::cout << "Loop found with path size: " << path.size() << std::endl;
-                    return path; // Loop found
-                }
-                continue; // This is just back and forth edge, not a real loop, continue search
-            }
-            
-            // Continue traversal if the next node is degree 2 and not already in our current path.
-            if (nodes[next].degree == 2 && !visited_in_path[next]) {
-                current = next;
+        for (int next_edge_idx : nodes[current_node_idx].edges) {
+            if (next_edge_idx != -1 && next_edge_idx != prev_edge_idx && !edges[next_edge_idx].cut) {
+                es.push_back(next_edge_idx);
+                prev_edge_idx = next_edge_idx;
+                int n0 = edges[next_edge_idx].node_indices[0];
+                int n1 = edges[next_edge_idx].node_indices[1];
+                current_node_idx = (n0 == current_node_idx) ? n1 : n0;
                 found_next = true;
                 break;
             }
         }
-        if (!found_next) {
-            // Dead end, not a loop that started from here.
-            break;
-        }
+        if (!found_next) break;
     }
-    
-    return {}; // No loop found
+    return es;
 }
 
 } // anonymous namespace
 
 Info GetInfo(const Board& board, int currentPlayer) {
-    Info info = {};
+    Info info;
+    std::vector<Node> nodes(49);
+    std::vector<Edge> edges(60);
     
-    // 构建图结构
-    std::vector<Node> nodes;
-    std::vector<Edge> edges;
-    buildGraph(board, nodes, edges);
-    
-    // 1. 统计点的度数 (Point[0~4])
-    for (int i = 0; i < 36; ++i) {  // 更新为6x6网格的节点数
-        int x = i / 6;
-        int y = i % 6;
-        // Skip 4 corner nodes
-        if ((x == 0 || x == 5) && (y == 0 || y == 5)) {
-            continue;
+    // 1. Initialize a 7x7 node grid
+    for (int i = 0; i < 7; ++i) {
+        for (int j = 0; j < 7; ++j) {
+            int node_idx = i * 7 + j;
+            nodes[node_idx] = {i, j, 0, (i == 0 || i == 6 || j == 0 || j == 6), {-1, -1, -1, -1}};
         }
-        int deg = nodes[i].degree;
-        if (deg > 4) {
-            info.Point[0]++;
-        } else if (deg >= 1 && deg <= 4) {
-            info.Point[deg]++;
+    }
+
+    // 2. Build graph, mapping qboard.go edge indices to C++ Board coordinates
+    for (int q_idx = 0; q_idx < 60; ++q_idx) {
+        edges[q_idx].idx = q_idx;
+        
+        int r1, c1, r2, c2; // Node coordinates in the 7x7 grid (0-6)
+
+        if (q_idx < 30) { // Horizontal edge
+            r1 = r2 = (q_idx / 6) + 1;
+            c1 = q_idx % 6;
+            c2 = c1 + 1;
+        } else { // Vertical edge
+            c1 = c2 = ((q_idx - 30) / 6) + 1;
+            r1 = (q_idx - 30) % 6;
+            r2 = r1 + 1;
+        }
+
+        // Connect nodes and edges
+        int n1_idx = r1 * 7 + c1;
+        int n2_idx = r2 * 7 + c2;
+        edges[q_idx].node_indices[0] = n1_idx;
+        edges[q_idx].node_indices[1] = n2_idx;
+        nodes[n1_idx].edges[r1 == r2 ? 1 : 2] = q_idx; // Right or Down
+        nodes[n2_idx].edges[r1 == r2 ? 3 : 0] = q_idx; // Left or Up
+        
+        // Determine if the edge is cut
+        bool is_boundary_edge = (r1 == 0 || r2 == 6 || c1 == 0 || c2 == 6);
+        if (is_boundary_edge) {
+            edges[q_idx].cut = false; // Edges connected to ground are always free
+        } else {
+            // Internal edges: map to Board _MAP_ and check
+            int map_r, map_c;
+            if (q_idx < 30) { // Horizontal
+                map_r = 2 * r1;
+                map_c = 2 * c1 + 1;
+            } else { // Vertical
+                map_r = 2 * r1 + 1;
+                map_c = 2 * c1;
+            }
+            edges[q_idx].cut = !board.is_Free_Line(map_r, map_c);
+        }
+    }
+
+    // 3. Calculate node degrees
+    for (int i = 0; i < 60; ++i) {
+        if (!edges[i].cut) {
+            nodes[edges[i].node_indices[0]].degree++;
+            nodes[edges[i].node_indices[1]].degree++;
+        }
+    }
+    // Add boundary degrees for non-corner ground nodes
+    for (int j = 1; j <= 5; ++j) {
+        nodes[j].degree += 3;           // node[0][j]
+        nodes[6*7 + j].degree += 3;     // node[6][j]
+        nodes[j*7].degree += 3;         // node[j][0]
+        nodes[j*7 + 6].degree += 3;     // node[j][6]
+    }
+    
+    // 4. Calculate Feature 0-4: Point features (from 5x5 inner grid of nodes)
+    for (int i = 1; i <= 5; ++i) {
+        for (int j = 1; j <= 5; ++j) {
+            if(nodes[i*7+j].degree < 5)
+                info.Point[nodes[i*7+j].degree]++;
+        }
+    }
+
+    // 5. Chain and Loop analysis
+    std::vector<int> parent(60);
+    std::iota(parent.begin(), parent.end(), 0);
+    std::vector<LinkState> link_states(60);
+    std::vector<bool> visited_nodes(49, false);
+
+    auto o = [&](const std::vector<int>& buf) {
+        if (buf.empty()) return -1;
+        int p = buf[0];
+        for (size_t i = 1; i < buf.size(); ++i) {
+            union_sets(p, buf[i], parent);
+            p = find_set(p, parent);
+        }
+        return p;
+    };
+    
+    // Find chains from all non-visited nodes
+    for (int i = 0; i < 49; ++i) {
+        if (nodes[i].degree == 1 && !visited_nodes[i]) {
+            visited_nodes[i] = true;
+            auto [paths, ends] = walkToEnd(i, nodes, edges, visited_nodes);
+            if (!paths.empty()) {
+                auto& path = paths[0];
+                int end_node_idx = ends[0];
+                int root = o(path);
+                if (root != -1) {
+                    LinkState ls;
+                    ls.length = path.size();
+                    if (nodes[end_node_idx].ground || nodes[end_node_idx].degree == 1) { // O-...-O
+                         if (path.size() == 1) ls.ty = 4;
+                         else if (path.size() == 2) ls.ty = 5;
+                         else if (path.size() == 3) ls.ty = 7;
+                         else ls.ty = 6;
+                    } else { // O-...-X
+                         if (path.size() == 1) ls.ty = 1;
+                         else if (path.size() == 2) ls.ty = 3;
+                         else ls.ty = 2;
+                    }
+                    link_states[root] = ls;
+                }
+            }
+        } else if (nodes[i].degree >= 3 && !visited_nodes[i]) {
+            visited_nodes[i] = true;
+            auto [paths, ends] = walkToEnd(i, nodes, edges, visited_nodes);
+            for (size_t k = 0; k < paths.size(); ++k) {
+                auto& path = paths[k];
+                int end_node_idx = ends[k];
+                int root = o(path);
+                if (root != -1) {
+                     LinkState ls;
+                     ls.length = path.size();
+                    if (nodes[end_node_idx].ground || nodes[end_node_idx].degree == 1) { // X-...-O
+                        if (path.size() == 1) continue;
+                        else if (path.size() == 2) ls.ty = 3;
+                        else ls.ty = 2;
+                    } else { // X-...-X
+                        if (path.size() == 1) ls.ty = 8;
+                        else if (path.size() == 2) ls.ty = 9;
+                        else if (path.size() == 3) ls.ty = 10;
+                        else ls.ty = 11;
+                    }
+                    link_states[root] = ls;
+                }
+            }
         }
     }
     
-    // 2. 遍历度为3和4的节点，统计链和halfheart
-    for (int degree = 4; degree >= 3; --degree) {
-        for (int i = 0; i < 36; ++i) {
-            if (nodes[i].degree == degree) {
-                if (degree == 4 || (degree == 3 && nodes[i].x >= 1 && nodes[i].x <= 4 && 
-                                   nodes[i].y >= 1 && nodes[i].y <= 4)) {
-                    
-                    auto buf_end = walkToEnd(nodes, edges, i);
-                    for (size_t k = 0; k < buf_end.second.size(); ++k) {
-                        int end_node = buf_end.second[k];
-                        if (nodes[end_node].degree == 1) {
-                            info.Halfheart++;
-                        } else {
-                            int ll = buf_end.first[k].size() - 1;
-                            if (ll > 10) ll = 10;
-                            if (nodeComp(nodes[i], nodes[end_node]) == 1) {
-                                info.Link[ll]++;
-                            } else if (buf_end.first[k].size() > 1) {
-                                info.Link[ll]++;
-                            }
-                        }
+    // Find loops
+    for (int i = 1; i <= 5; ++i) {
+        for (int j = 1; j <= 5; ++j) {
+            int node_idx = i * 7 + j;
+            if (nodes[node_idx].degree == 2 && !visited_nodes[node_idx]) {
+                auto path = walkLoop(node_idx, nodes, edges, visited_nodes);
+                if (!path.empty()) {
+                    int root = o(path);
+                    if (root != -1) {
+                        LinkState ls;
+                        ls.ty = 12;
+                        ls.length = path.size();
+                        link_states[root] = ls;
                     }
                 }
             }
         }
     }
-    
-    // 3. 遍历度为1的节点，统计fourlink
-    for (int i = 0; i < 36; ++i) {  // 更新为6x6网格的节点数
-        if (nodes[i].degree == 1) {
-            auto buf_end = walkToEnd(nodes, edges, i);
-            if (buf_end.first.size() == 1) {
-                if (buf_end.second[0] >= 3) {
-                    info.Halfheart++;
-                } else {
-                    info.Fourlink++;
+
+    // 6. Aggregate features
+    for (int i = 0; i < 60; ++i) {
+        if (parent[i] == i) { // It's a root
+            const auto& ls = link_states[i];
+            if (ls.ty == -1) continue;
+
+            if (ls.ty >= 8 && ls.ty <= 11) {
+                int len = ls.length;
+                if (len > 12)len=12;
+                if(len>=2)
+                     info.Link[len-2]++;
+            } 
+            else if (ls.ty == 3) {
+                info.Halfheart++;
+            } 
+            else if (ls.ty == 7) {
+                info.Fourlink++;
+            } 
+            else if (ls.ty == 12) {
+                if (ls.length >= 4) {
+                    int len_idx = (ls.length - 4) >> 1;
+                    if (len_idx >= 0 && len_idx < 5) {
+                        info.Loop[len_idx]++;
+                    }
                 }
             }
         }
     }
-    
-    // 4. 遍历度为2的节点，统计环
-    std::vector<bool> visited(36, false);  // 更新为6x6网格的节点数
-    for (int i = 0; i < 36; ++i) {  // 更新为6x6网格的节点数
-        if (nodes[i].degree == 2 && !visited[i]) {
-            auto path = walkLoop(nodes, edges, i);
-            if (!path.empty()) {
-                int l = path.size();
-                int length = (l - 4) >> 1;
-                if (length > 4) length = 4;
-                if (length >= 0) {
-                    info.Loop[length]++;
-                }
-                
-                // 标记环上的所有节点为已访问
-                for (int node_idx : path) {
-                    visited[node_idx] = true;
-                }
-            }
-        }
-    }
-    
+
     return info;
 }
 
 std::vector<fann_type> extract_features(const Board& board, int currentPlayer) {
     Info info = GetInfo(board, currentPlayer);
-    std::vector<fann_type> features(25, 0.0f);
-    
-    // Point features (5) - 按照Go代码的顺序，从Point[0]开始
+    std::vector<fann_type> features(25);
+
+    // Feat 0-4: Points
     for (int i = 0; i < 5; ++i) {
         features[i] = static_cast<fann_type>(info.Point[i]) / 25.0f;
     }
-    
-    // Link features (11)
+    // Feat 5-15: Hard Links by length
     for (int i = 0; i < 11; ++i) {
-        features[5 + i] = static_cast<fann_type>(info.Link[i]) / 40.0f;
+        features[i + 5] = static_cast<fann_type>(info.Link[i]) / 40.0f;
     }
-    
-    // Loop features (5)
+    // Feat 16-20: Loops
     for (int i = 0; i < 5; ++i) {
         features[16 + i] = static_cast<fann_type>(info.Loop[i]) / 5.0f;
     }
-    
-    // Halfheart feature (1)
+    // Feat 21: Halfheart
     features[21] = static_cast<fann_type>(info.Halfheart) / 10.0f;
-    
-    // Fourlink feature (1)
+    // Feat 22: Fourlink
     features[22] = static_cast<fann_type>(info.Fourlink) / 4.0f;
     
-    // Score features (2) - 当前玩家和对手的得分
-    int player_scores[2];
-    player_scores[0] = board.TAKE_Boxes_OF_Players(currentPlayer);
-    player_scores[1] = board.TAKE_Boxes_OF_Players(-currentPlayer);
-    features[23] = static_cast<fann_type>(player_scores[0]) / 16.0f;
-    features[24] = static_cast<fann_type>(player_scores[1]) / 16.0f;
+    // Feat 23-24: Scores
+    int s0 = (currentPlayer == BLACK) ? board.BOX_of_BLACK : board.BOX_of_WHITE;
+    int s1 = (currentPlayer == BLACK) ? board.BOX_of_WHITE : board.BOX_of_BLACK;
+
+    features[23] = static_cast<fann_type>(s0) / 16.0f;
+    features[24] = static_cast<fann_type>(s1) / 16.0f;
+
     return features;
 }

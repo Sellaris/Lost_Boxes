@@ -14,6 +14,7 @@
 #include "AISearch/UCT_TT.h"
 #include "AISearch/FeatureExtractor.h"
 #include "AISearch/ANN.h"
+#include <iomanip>
 extern "C" {
   #include "fann.h"
 }
@@ -77,10 +78,12 @@ void AIMove();
 int main(){
     SetConsoleOutputCP(65001); // 设置控制台输出为UTF-8
     gameBoard=new Board;
-    
+    //TEST
     for(int i=1;i<=10;i++){
         std::cout<<"TEST"<<i<<"\n";
-        std::vector<fann_type> input = extract_features(gameBoard->_MAP_, 1);
+        std::vector<float> input = extract_features(*gameBoard, 1);
+        //input[6]=0;
+        for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
         std::cout<<processANN(input)<<"\n";
     }
 
