@@ -31,8 +31,8 @@ static std::unordered_map<std::string, Node*> g_trans_table;
 static std::mutex g_tt_mutex;
 
 // --- 前向声明 ---
-float Process_UCT_TT_ANN(Node& b, int& total);
-Node* expand_UCT_Node_TT_ANN(Node& parent_node);
+float Process_UCT_TT_ANN(Node& b, int& total, int total_moves);
+Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves);
 void Move_UCT_TT_ANN(Board& cb, int player, std::vector<POS>& pace, int total_moves);
 void _Sacrifice_Move_UCT_TT_ANN(Board& CB, int Player, std::vector<POS>& pace, int total_moves);
 void Situation_Move_latter_TT_ANN(Board& CB, int Player, std::vector<POS>& pace, int total_moves);
@@ -153,11 +153,14 @@ float Evalution_TAKE_Filter_OF_MC_TT_ANN(Board&CB,int NextPlayer,int _Winner){
         threads.emplace_back(std::thread(multi_thread_func_tt,std::ref(_MCB),std::ref(_MCE),NextPlayer,_Winner,UCT__TIMES__MC,i));
     }
     for(auto&th:threads)th.join();
+    return static_cast<float>(_MCE.load())/static_cast<float>(UCT__TIMES__MC);
+}
+float Evalution_TAKE_Filter_OF_TT_ANN(Board&CB,int NextPlayer,int _Winner){
     //std::vector<fann_type> input(25, 0.5f);
     std::vector<fann_type> input = extract_features(CB, NextPlayer);
-    std::cout<<"input: ";
-    for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
-    std::cout<<std::endl;
+    //std::cout<<"input: ";
+    //for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
+    //std::cout<<std::endl;
     float output = processANN(input);//test
     return output;
 }
@@ -167,7 +170,7 @@ float Evalution_TAKE_Filter_OF_MC_TT_ANN(Board&CB,int NextPlayer,int _Winner){
  * @param parent_node 父节点
  * @return Node* 指向新的或已存在的子节点
  */
-Node* expand_UCT_Node_TT_ANN(Node& parent_node) {
+Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves) {
     ++tt_probes;
 
     // 模拟落子以获取子节点状态
@@ -196,9 +199,15 @@ Node* expand_UCT_Node_TT_ANN(Node& parent_node) {
 
     // 使用蒙特卡洛模拟进行初始评估
     Board eval_board(child_node->_MAP_);
-    float eval_score = Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
-    std::cout<<eval_score<<"\n";
-    child_node->_Avg_Value = eval_score/2 +0.5f;
+    float eval_score = 0;
+   //std::cout<<"total_moves: "<<total_moves<<"\n";
+    if(total_moves<8){
+       eval_score=Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
+       child_node->_Avg_Value = eval_score;
+    }else{
+        eval_score=Evalution_TAKE_Filter_OF_TT_ANN(eval_board, child_player, parent_node.Owner);
+        child_node->_Avg_Value = eval_score/2.0f +0.5f;
+    }
 
     // 存入内存池和置换表
     g_node_pool.push_back(std::move(new_node_ptr));
@@ -234,7 +243,7 @@ void print_tt_stats() {
  * @param total 总模拟次数
  * @return float 评估价值
  */
-float Process_UCT_TT_ANN(Node& b, int& total) {
+float Process_UCT_TT_ANN(Node& b, int& total, int total_moves) {
     b.Times++;
 
     ++total;
@@ -253,7 +262,7 @@ float Process_UCT_TT_ANN(Node& b, int& total) {
     }
 
     if (b._Exist_Child < b.Total_Child) {
-        Node* new_child = expand_UCT_Node_TT_ANN(b);
+        Node* new_child = expand_UCT_Node_TT_ANN(b, total_moves);
         b._Child_NODES[b._Exist_Child] = new_child;
         b._Exist_Child++;
         total++;
@@ -273,7 +282,7 @@ float Process_UCT_TT_ANN(Node& b, int& total) {
     }
 
     if (best_node_idx != -1) {
-        Process_UCT_TT_ANN(*b._Child_NODES[best_node_idx], total);
+        Process_UCT_TT_ANN(*b._Child_NODES[best_node_idx], total, total_moves);
         refresh_avg_value(&b);
     }
     
@@ -309,7 +318,7 @@ void Move_UCT_TT_ANN(Board& cb, int player, std::vector<POS>& pace, int total_mo
         int total_sims = 0;
         clock_t start = clock();
         for (int i = 0; i < UCT__ALL_TIMES; ++i) {
-            Process_UCT_TT_ANN(*root_node, total_sims);
+            Process_UCT_TT_ANN(*root_node, total_sims, total_moves);
             if ((static_cast<double>(clock() - start) / CLOCKS_PER_SEC) >= UCT__LIMIT_TIME) break;
         }
 

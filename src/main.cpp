@@ -79,10 +79,9 @@ int main(){
     SetConsoleOutputCP(65001); // 设置控制台输出为UTF-8
     gameBoard=new Board;
     //TEST
-    for(int i=1;i<=10;i++){
+    for(int i=1;i<=1;i++){
         std::cout<<"TEST"<<i<<"\n";
-        std::vector<float> input = extract_features(*gameBoard, 1);
-        //input[6]=0;
+        std::vector<fann_type> input = extract_features(*gameBoard, 1);
         for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
         std::cout<<processANN(input)<<"\n";
     }
@@ -486,6 +485,10 @@ void AIMove(){
         if(!ai_steps.empty())
             nowMove = ai_steps.back();
         nowPlayer = -nowPlayer;
+        
+        std::vector<fann_type> input = extract_features(*gameBoard, nowPlayer);
+        for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
+        std::cout<<processANN(input)<<"\n";
         status = 0;
     }
 }
