@@ -6,87 +6,98 @@ namespace {
 
 // 辅助结构体，用于模拟Go代码中的节点
 struct Node {
-    int x, y;
-    int degree;
-    bool ground;
-    std::vector<int> edges; // 存储边的索引
+    int x, y;                  // 坐标
+    int degree;                // 节点的度数
+    bool ground;               // 是否是边界节点
+    std::vector<int> edges;    // 存储边的索引
 };
 
 // 辅助结构体，用于模拟Go代码中的边
 struct Edge {
-    int idx;
-    int node[2]; // 连接的两个节点索引
-    int code;
-    bool exist;
+    int idx;                   // 边的索引
+    int node[2];               // 连接的两个节点索引
+    bool exist;                // 边是否存在
 };
 
-// 棋盘转换为图结构
+// 节点比较函数，比较两个节点的坐标顺序
+int nodeComp(const Node& a, const Node& b) {
+    if (a.x < b.x) return -1;  // 如果 a.x 小于 b.x，返回 -1
+    if (a.x > b.x) return 1;   // 如果 a.x 大于 b.x，返回 1
+    if (a.y < b.y) return -1;  // 如果 a.x 相等，比较 y 坐标
+    if (a.y > b.y) return 1;
+    return 0;  // 如果两个节点的坐标都相等，返回 0
+}
+
+// 重新构建图，简化节点和边的映射
 void buildGraph(const Board& board, std::vector<Node>& nodes, std::vector<Edge>& edges) {
-    // 初始化节点 (7x7网格，包括边界)
-    nodes.resize(49);
-    for (int i = 0; i < 7; ++i) {
-        for (int j = 0; j < 7; ++j) {
-            int idx = i * 7 + j;
+    const int grid_size = 6;  // 6x6网格
+    const int edge_count = (grid_size - 1) * grid_size * 2; // 水平和垂直边的数量
+    nodes.resize(grid_size * grid_size);
+    edges.resize(edge_count);
+
+    // 初始化节点
+    for (int i = 0; i < grid_size; ++i) {
+        for (int j = 0; j < grid_size; ++j) {
+            int idx = i * grid_size + j;
             nodes[idx].x = i;
             nodes[idx].y = j;
             nodes[idx].degree = 0;
-            nodes[idx].ground = (i == 0 || i == 6 || j == 0 || j == 6);
+            nodes[idx].ground = (i == 0 || i == grid_size - 1 || j == 0 || j == grid_size - 1);
             nodes[idx].edges.clear();
         }
     }
-    
-    // 初始化边 (60条边)
-    edges.resize(60);
-    for (int i = 0; i < 60; ++i) {
-        edges[i].idx = i;
-        edges[i].exist = false;
-        edges[i].code = 1 << (i % 30);
-        
-        int x = (i % 30) / 6 + 1;
-        int y = (i % 30) % 6 + 1;
-        
-        if (i < 30) { // 水平边
-            int node1 = x * 7 + (y - 1);
-            int node2 = x * 7 + y;
-            edges[i].node[0] = node1;
-            edges[i].node[1] = node2;
-            
-            // 检查边是否存在 - 水平边在Board中的坐标是(2*x, y)
-            int map_x = 2 * x;
-            int map_y = y;
+
+    int edge_idx = 0;
+
+    // 连接水平边
+    for (int i = 0; i < grid_size; ++i) {
+        for (int j = 0; j < grid_size - 1; ++j) {
+            int node1 = i * grid_size + j;
+            int node2 = i * grid_size + (j + 1);
+            edges[edge_idx] = {edge_idx, {node1, node2}, false};
+
+            // 检查水平边是否存在
+            int map_x = 2 * i;
+            int map_y = j + 1;
             if (map_x < 11 && map_y < 11) {
-                edges[i].exist = (board._MAP_[map_x][map_y] == Horizon);
+                edges[edge_idx].exist = (board._MAP_[map_x][map_y] == Horizon);
             }
-        } else { // 垂直边
-            int node1 = (y - 1) * 7 + x;
-            int node2 = y * 7 + x;
-            edges[i].node[0] = node1;
-            edges[i].node[1] = node2;
             
-            // 检查边是否存在 - 垂直边在Board中的坐标是(x, 2*y)
-            int map_x = x;
-            int map_y = 2 * y;
-            if (map_x < 11 && map_y < 11) {
-                edges[i].exist = (board._MAP_[map_x][map_y] == Vertical);
+            // 更新节点度数
+            if (edges[edge_idx].exist) {
+                nodes[node1].degree++;
+                nodes[node2].degree++;
             }
-        }
-        
-        // 如果边存在，更新节点度数
-        if (edges[i].exist) {
-            nodes[edges[i].node[0]].degree++;
-            nodes[edges[i].node[1]].degree++;
-            nodes[edges[i].node[0]].edges.push_back(i);
-            nodes[edges[i].node[1]].edges.push_back(i);
+
+            edge_idx++;
         }
     }
-    
-    // 边界节点的度数调整（模拟Go代码中的边界处理）
-    for (int idx : {0, 6}) {
-        for (int j = 1; j <= 5; ++j) {
-            nodes[idx * 7 + j].degree += 3;
-            nodes[j * 7 + idx].degree += 3;
+
+    // 连接垂直边
+    for (int i = 0; i < grid_size - 1; ++i) {
+        for (int j = 0; j < grid_size; ++j) {
+            int node1 = i * grid_size + j;
+            int node2 = (i + 1) * grid_size + j;
+            edges[edge_idx] = {edge_idx, {node1, node2}, false};
+
+            // 检查垂直边是否存在
+            int map_x = j;
+            int map_y = 2 * (i + 1);
+            if (map_x < 11 && map_y < 11) {
+                edges[edge_idx].exist = (board._MAP_[map_x][map_y] == Vertical);
+            }
+            
+            // 更新节点度数
+            if (edges[edge_idx].exist) {
+                nodes[node1].degree++;
+                nodes[node2].degree++;
+            }
+
+            edge_idx++;
         }
     }
+
+    //std::cout << "Graph built successfully with " << nodes.size() << " nodes and " << edges.size() << " edges." << std::endl;
 }
 
 // 模拟Go代码的walkToEnd函数
@@ -99,8 +110,8 @@ std::pair<std::vector<std::vector<int>>, std::vector<int>> walkToEnd(
     if (nodes[start_node].degree == 1) {
         // 从度为1的节点开始遍历
         std::vector<int> path;
-        std::vector<bool> visited(49, false);
-        
+        std::vector<bool> visited(36, false);  // 6x6网格的节点数
+
         int current = start_node;
         path.push_back(current);
         visited[current] = true;
@@ -141,7 +152,7 @@ std::vector<int> walkLoop(const std::vector<Node>& nodes, const std::vector<Edge
     if (nodes[start_node].degree != 2) return {};
 
     std::vector<int> path;
-    std::vector<bool> visited_in_path(49, false); // Visited for this specific walk
+    std::vector<bool> visited_in_path(36, false);  // 6x6网格的节点数
 
     int current = start_node;
     
@@ -157,6 +168,7 @@ std::vector<int> walkLoop(const std::vector<Node>& nodes, const std::vector<Edge
             // If we found the start node and it's not the immediate previous node, it's a loop.
             if (next == start_node) {
                 if (path.size() > 2) {
+                    std::cout << "Loop found with path size: " << path.size() << std::endl;
                     return path; // Loop found
                 }
                 continue; // This is just back and forth edge, not a real loop, continue search
@@ -178,15 +190,6 @@ std::vector<int> walkLoop(const std::vector<Node>& nodes, const std::vector<Edge
     return {}; // No loop found
 }
 
-// 模拟Go代码的nodeComp函数
-int nodeComp(const Node& a, const Node& b) {
-    if (a.x < b.x) return -1;
-    if (a.x > b.x) return 1;
-    if (a.y < b.y) return -1;
-    if (a.y > b.y) return 1;
-    return 0;
-}
-
 } // anonymous namespace
 
 Info GetInfo(const Board& board, int currentPlayer) {
@@ -198,12 +201,11 @@ Info GetInfo(const Board& board, int currentPlayer) {
     buildGraph(board, nodes, edges);
     
     // 1. 统计点的度数 (Point[0~4])
-    // The logic is corrected to match the Go implementation: iterate all 45 non-corner nodes.
-    for (int i = 0; i < 49; ++i) {
-        int x = i / 7;
-        int y = i % 7;
-        // Skip 4 corner nodes, same as Go version
-        if ((x == 0 || x == 6) && (y == 0 || y == 6)) {
+    for (int i = 0; i < 36; ++i) {  // 更新为6x6网格的节点数
+        int x = i / 6;
+        int y = i % 6;
+        // Skip 4 corner nodes
+        if ((x == 0 || x == 5) && (y == 0 || y == 5)) {
             continue;
         }
         int deg = nodes[i].degree;
@@ -214,14 +216,12 @@ Info GetInfo(const Board& board, int currentPlayer) {
         }
     }
     
-    // Point[0] 特殊处理边界点 (This part is removed as it's incorrect and replaced by the logic above)
-    
     // 2. 遍历度为3和4的节点，统计链和halfheart
     for (int degree = 4; degree >= 3; --degree) {
-        for (int i = 0; i < 49; ++i) {
+        for (int i = 0; i < 36; ++i) {
             if (nodes[i].degree == degree) {
-                if (degree == 4 || (degree == 3 && nodes[i].x >= 1 && nodes[i].x <= 5 && 
-                                   nodes[i].y >= 1 && nodes[i].y <= 5)) {
+                if (degree == 4 || (degree == 3 && nodes[i].x >= 1 && nodes[i].x <= 4 && 
+                                   nodes[i].y >= 1 && nodes[i].y <= 4)) {
                     
                     auto buf_end = walkToEnd(nodes, edges, i);
                     for (size_t k = 0; k < buf_end.second.size(); ++k) {
@@ -244,7 +244,7 @@ Info GetInfo(const Board& board, int currentPlayer) {
     }
     
     // 3. 遍历度为1的节点，统计fourlink
-    for (int i = 0; i < 49; ++i) {
+    for (int i = 0; i < 36; ++i) {  // 更新为6x6网格的节点数
         if (nodes[i].degree == 1) {
             auto buf_end = walkToEnd(nodes, edges, i);
             if (buf_end.first.size() == 1) {
@@ -258,8 +258,8 @@ Info GetInfo(const Board& board, int currentPlayer) {
     }
     
     // 4. 遍历度为2的节点，统计环
-    std::vector<bool> visited(49, false);
-    for (int i = 0; i < 49; ++i) {
+    std::vector<bool> visited(36, false);  // 更新为6x6网格的节点数
+    for (int i = 0; i < 36; ++i) {  // 更新为6x6网格的节点数
         if (nodes[i].degree == 2 && !visited[i]) {
             auto path = walkLoop(nodes, edges, i);
             if (!path.empty()) {
@@ -312,6 +312,5 @@ std::vector<fann_type> extract_features(const Board& board, int currentPlayer) {
     player_scores[1] = board.TAKE_Boxes_OF_Players(-currentPlayer);
     features[23] = static_cast<fann_type>(player_scores[0]) / 16.0f;
     features[24] = static_cast<fann_type>(player_scores[1]) / 16.0f;
-    
     return features;
 }

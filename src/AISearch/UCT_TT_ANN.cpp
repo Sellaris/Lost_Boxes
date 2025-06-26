@@ -152,8 +152,8 @@ float Evalution_TAKE_Filter_OF_MC_TT_ANN(Board&CB,int NextPlayer,int _Winner){
         threads.emplace_back(std::thread(multi_thread_func_tt,std::ref(_MCB),std::ref(_MCE),NextPlayer,_Winner,UCT__TIMES__MC,i));
     }
     for(auto&th:threads)th.join();
-    std::vector<fann_type> input(25, 0.5f);
-    //std::vector<fann_type> input = extract_features(CB, NextPlayer);
+    //std::vector<fann_type> input(25, 0.5f);
+    std::vector<fann_type> input = extract_features(CB, NextPlayer);
     float output = processANN(input);//test
     return output;
 }

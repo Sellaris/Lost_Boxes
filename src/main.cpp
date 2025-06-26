@@ -12,7 +12,11 @@
 #include <fstream>
 #include "AISearch/UCT_TT_ANN.h"
 #include "AISearch/UCT_TT.h"
-
+#include "AISearch/FeatureExtractor.h"
+#include "AISearch/ANN.h"
+extern "C" {
+  #include "fann.h"
+}
 std::string BlackName="先手";
 std::string WhiteName="后手";
 
@@ -72,9 +76,16 @@ void AIMove();
 // 主函数：程序入口，初始化窗口与资源，进入主事件循环
 int main(){
     SetConsoleOutputCP(65001); // 设置控制台输出为UTF-8
+    gameBoard=new Board;
+    
+    for(int i=1;i<=10;i++){
+        std::cout<<"TEST"<<i<<"\n";
+        std::vector<fann_type> input = extract_features(gameBoard->_MAP_, 1);
+        std::cout<<processANN(input)<<"\n";
+    }
+
     mainWindow.create(sf::VideoMode(1500,1000),L"Sela 点格棋",sf::Style::Default);
     mainWindow.setVerticalSyncEnabled(true);
-    gameBoard=new Board;
     font.loadFromFile("res/LXGWWenKai-Bold.ttf");
     texture.loadFromFile("res/board.jpg",sf::IntRect(0,0,1000,1000));
     sprite.setTexture(texture);
