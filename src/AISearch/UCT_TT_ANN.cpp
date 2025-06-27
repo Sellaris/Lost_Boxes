@@ -201,7 +201,7 @@ Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves) {
     Board eval_board(child_node->_MAP_);
     float eval_score = 0;
    //std::cout<<"total_moves: "<<total_moves<<"\n";
-    if(total_moves<8){
+    if(total_moves<18){
        eval_score=Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
        child_node->_Avg_Value = eval_score;
     }else{

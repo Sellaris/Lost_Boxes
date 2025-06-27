@@ -482,13 +482,13 @@ void AIMove(){
             std::cout << "AISearch Move: " << REG << "\n";
         }
         std::cout << "\n";
+        std::vector<fann_type> input = extract_features(*gameBoard, nowPlayer);
+        for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
+        std::cout<<"\n当前局面胜率="<<processANN(input)/2+0.5f<<"%\n";
         if(!ai_steps.empty())
             nowMove = ai_steps.back();
         nowPlayer = -nowPlayer;
         
-        std::vector<fann_type> input = extract_features(*gameBoard, nowPlayer);
-        for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
-        std::cout<<processANN(input)<<"\n";
         status = 0;
     }
 }

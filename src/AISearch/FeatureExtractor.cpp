@@ -171,11 +171,11 @@ Info GetInfo(const Board& board, int currentPlayer) {
             // Internal edges: map to Board _MAP_ and check
             int map_r, map_c;
             if (q_idx < 30) { // Horizontal
-                map_r = 2 * r1;
-                map_c = 2 * c1 + 1;
-            } else { // Vertical
-                map_r = 2 * r1 + 1;
+                map_r = 2 * r1 - 1;
                 map_c = 2 * c1;
+            } else { // Vertical
+                map_r = 2 * r1;
+                map_c = 2 * c1 - 1;
             }
             edges[q_idx].cut = !board.is_Free_Line(map_r, map_c);
         }
@@ -298,9 +298,9 @@ Info GetInfo(const Board& board, int currentPlayer) {
 
             if (ls.ty >= 8 && ls.ty <= 11) {
                 int len = ls.length;
-                if (len > 12)len=12;
-                if(len>=2)
-                     info.Link[len-2]++;
+                if (len > 11)len=11;
+                if(len>=1)
+                     info.Link[len-1]++;
             } 
             else if (ls.ty == 3) {
                 info.Halfheart++;
