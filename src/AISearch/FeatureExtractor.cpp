@@ -140,6 +140,7 @@ Info GetInfo(const Board& board, int currentPlayer) {
         }
     }
 
+    int free_edges = 0;
     // 2. Build graph, mapping qboard.go edge indices to C++ Board coordinates
     for (int q_idx = 0; q_idx < 60; ++q_idx) {
         edges[q_idx].idx = q_idx;
@@ -176,11 +177,16 @@ Info GetInfo(const Board& board, int currentPlayer) {
             } else { // Vertical
                 map_r = 2 * r1 ;
                 map_c = 2 * c1 - 1;
-            }
+            }        
+            if (board.is_Free_Line(map_r, map_c)) {
+                free_edges++;
+            }    
+
             //std::cout<<"map_r="<<map_r<<" map_c="<<map_c<<"\n";
             edges[q_idx].cut = !board.is_Free_Line(map_r, map_c);
         }
     }
+    info.Link[0] = free_edges;
 
     // 3. Calculate node degrees
     for (int i = 0; i < 60; ++i) {
@@ -200,7 +206,7 @@ Info GetInfo(const Board& board, int currentPlayer) {
             if(nodes[i*7+j].degree < 5)
                 info.Point[nodes[i*7+j].degree]++;
         }
-    }
+    }info.Point[0]+=20;
 
     // 5. Chain and Loop analysis
     std::vector<int> parent(60);
@@ -297,7 +303,7 @@ Info GetInfo(const Board& board, int currentPlayer) {
             if (ls.ty >= 8 && ls.ty <= 11) {
                 int len = ls.length;
                 if (len > 11)len=11;
-                if(len>=1)
+                if(len > 1)
                      info.Link[len-1]++;
             } 
             else if (ls.ty == 3) {

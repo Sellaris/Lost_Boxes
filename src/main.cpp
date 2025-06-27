@@ -508,7 +508,7 @@ void AIMove(){
         }else{
             eval_score = (eval_score ) / 2.0f +0.5f;
         }
-        std::cout<<(nowPlayer == BLACK ? "先手" : "后手")<<"当前局面胜率="<<eval_score<<"%\n";
+        std::cout<<(nowPlayer == BLACK ? "先手" : "后手")<<"当前局面胜率="<<eval_score*100<<"%\n";
         if(!ai_steps.empty())
             nowMove = ai_steps.back();
         nowPlayer = -nowPlayer;
