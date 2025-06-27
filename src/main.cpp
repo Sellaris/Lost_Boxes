@@ -467,20 +467,28 @@ void AIMove(){
         work.get();
         if(nowPlayer==BLACK){
             black_time.stop();
-            white_time.start();
         }else{
             white_time.stop();
-            black_time.start();
         }
         for(const auto &i: ai_steps){
             steps[++top] = {nowPlayer, i};
+            nowMove = i;
+            gameBoard->move(nowPlayer, i, top + 1);
+
             std::string REG;
             REG += ((nowPlayer==-1) ? "b(" : "r(");
             REG += static_cast<char>('a'+i.second/2);
             REG += static_cast<char>('0'+6-((i.first+1)/2));
             REG += (i.first%2==0) ? ",h)" : ",v)";
             std::cout << "AISearch Move: " << REG << "\n";
+            
+            mainWindow.clear(sf::Color(66,66,66));
+            showGameBoard();
+            showSidebar();
+            mainWindow.display();
+            sf::sleep(sf::milliseconds(200));
         }
+
         std::cout << "\n";
         std::vector<fann_type> input = extract_features(*gameBoard, nowPlayer);
         for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
@@ -489,6 +497,15 @@ void AIMove(){
             nowMove = ai_steps.back();
         nowPlayer = -nowPlayer;
         
+        if(game_begin==1){
+            if(nowPlayer==BLACK){
+                white_time.stop();
+                black_time.start();
+            }else{
+                black_time.stop();
+                white_time.start();
+            }
+        }
         status = 0;
     }
 }

@@ -451,16 +451,17 @@ void Clear_UCT_TT() {
 
 void Turn_Move_Game_TT(Board &CB, int Player, int *status, std::vector<POS> &pace, int total_moves) {
     // 采用与旧版AI相同的逻辑分发器
-    Board Test = CB;
+    Board local_board = CB; // 创建一个本地副本进行操作，不修改原始棋盘
+    Board Test = local_board;
     int move_count_dummy = 0; // 这个仅用于探测，不影响主棋盘
     Test._TAKE_All_C_Boxes(Player, move_count_dummy, false); // 在副本上探测吃C
 
     bool LatterSituation = (Test.TAKE_Num_of_FILTER_Move() == 0);
 
     if(!LatterSituation) {
-        _Sacrifice_Move_UCT_TT(CB, Player, pace, total_moves);
+        _Sacrifice_Move_UCT_TT(local_board, Player, pace, total_moves);
     } else {
-        Situation_Move_latter_TT(CB, Player, pace, total_moves);
+        Situation_Move_latter_TT(local_board, Player, pace, total_moves);
     }
     
     *status = 1; // 标记为已完成决策

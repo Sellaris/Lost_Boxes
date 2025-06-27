@@ -341,12 +341,13 @@ void Situation_Move_latter(Board&CB,int Player,vector<POS>&pace, int total_moves
  * 算法：判断是否为后期局面，选择相应的移动策略
  */
 void Turn_Move_Game(Board&CB,int Player,int*status,vector<POS>&pace, int total_moves){
-    Board Test=CB;
+    Board local_board = CB; // 创建一个本地副本进行操作，不修改原始棋盘
+    Board Test=local_board;
     int move_count = total_moves + pace.size();
     Test._TAKE_All_C_Boxes(Player, move_count, true);
     bool LatterSituation=(Test.TAKE_Num_of_FILTER_Move()==0);
-    if(!LatterSituation)_Sacrifice_Move_UCT(CB,Player,pace, total_moves);
-    else Situation_Move_latter(CB,Player,pace, total_moves);
+    if(!LatterSituation)_Sacrifice_Move_UCT(local_board,Player,pace, total_moves);
+    else Situation_Move_latter(local_board,Player,pace, total_moves);
     *status=1;
 }
 
