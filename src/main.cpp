@@ -4,6 +4,7 @@
 #include "AISearch/board.h"
 #include "AISearch/Params.h"
 #include "Component/Time.h"
+#include "AISearch/AnnStats.h"
 #include <SFML/Graphics.hpp>
 #include <future>
 #include <iostream>
@@ -83,7 +84,7 @@ int main(){
         std::cout<<"TEST"<<i<<"\n";
         std::vector<fann_type> input = extract_features(*gameBoard, 1);
         for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
-        std::cout<<processANN(input)<<"\n";
+        std::cout<<processANN(input)/2.0f+0.5f<<"\n";
     }
 
     mainWindow.create(sf::VideoMode(1500,1000),L"Sela 点格棋",sf::Style::Default);
@@ -486,13 +487,28 @@ void AIMove(){
             showGameBoard();
             showSidebar();
             mainWindow.display();
-            sf::sleep(sf::milliseconds(200));
+            sf::sleep(sf::milliseconds(300));
         }
 
         std::cout << "\n";
         std::vector<fann_type> input = extract_features(*gameBoard, nowPlayer);
         for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
-        std::cout<<(nowPlayer == BLACK ? "先手" : "后手")<<"当前局面胜率="<<processANN(input)/2+0.5f<<"%\n";
+        
+        int total_moves=top;
+        double eval_score=processANN(input);
+        auto it = AnnStats::stats_map.find(total_moves);
+        if (it != AnnStats::stats_map.end()) {
+            const AnnStats::Stats& turn_stats = it->second;
+            if(eval_score > turn_stats.Wrate) eval_score = turn_stats.Pwcor;
+            else if(eval_score < turn_stats.Lrate) eval_score = 1 - turn_stats.Plcor;
+            else {
+                eval_score = (eval_score ) / 2.0f +0.5f;
+            }
+            std::cout<<"total_moves="<<total_moves<<"\n";
+        }else{
+            eval_score = (eval_score ) / 2.0f +0.5f;
+        }
+        std::cout<<(nowPlayer == BLACK ? "先手" : "后手")<<"当前局面胜率="<<eval_score<<"%\n";
         if(!ai_steps.empty())
             nowMove = ai_steps.back();
         nowPlayer = -nowPlayer;

@@ -1,5 +1,6 @@
 #include "UCT_TT_ANN.h"
 #include "Estimate.h"
+#include "AnnStats.h"
 #include "Node.h"
 #include <string>
 #include <mutex>
@@ -201,12 +202,21 @@ Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves) {
     Board eval_board(child_node->_MAP_);
     float eval_score = 0;
    //std::cout<<"total_moves: "<<total_moves<<"\n";
-    if(total_moves<18){
+    if(total_moves<24){
        eval_score=Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
        child_node->_Avg_Value = eval_score;
     }else{
         eval_score=Evalution_TAKE_Filter_OF_TT_ANN(eval_board, child_player, parent_node.Owner);
-        child_node->_Avg_Value = eval_score/2.0f +0.5f;
+        auto it = AnnStats::stats_map.find(total_moves);
+        if (it != AnnStats::stats_map.end()) {
+            const AnnStats::Stats& turn_stats = it->second;
+            if(eval_score > turn_stats.Wrate) eval_score = turn_stats.Pwcor;
+            else if(eval_score < turn_stats.Lrate) eval_score = 1 - turn_stats.Plcor;
+            else {
+                eval_score = (eval_score ) / 2.0f +0.5f;
+            }
+        }
+        child_node->_Avg_Value = eval_score;
     }
 
     // 存入内存池和置换表

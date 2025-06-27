@@ -4,6 +4,7 @@
 #include <numeric>
 #include <functional>
 #include <algorithm>
+#include <iostream>
 
 namespace {
 
@@ -165,18 +166,18 @@ Info GetInfo(const Board& board, int currentPlayer) {
         
         // Determine if the edge is cut
         bool is_boundary_edge = (r1 == 0 || r2 == 6 || c1 == 0 || c2 == 6);
-        if (is_boundary_edge) {
-            edges[q_idx].cut = false; // Edges connected to ground are always free
+        if (0) {
         } else {
             // Internal edges: map to Board _MAP_ and check
             int map_r, map_c;
             if (q_idx < 30) { // Horizontal
                 map_r = 2 * r1 - 1;
-                map_c = 2 * c1;
+                map_c = 2 * c1 ;
             } else { // Vertical
-                map_r = 2 * r1;
+                map_r = 2 * r1 ;
                 map_c = 2 * c1 - 1;
             }
+            std::cout<<"map_r="<<map_r<<" map_c="<<map_c<<"\n";
             edges[q_idx].cut = !board.is_Free_Line(map_r, map_c);
         }
     }
