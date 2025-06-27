@@ -202,7 +202,7 @@ Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves) {
     Board eval_board(child_node->_MAP_);
     float eval_score = 0;
    //std::cout<<"total_moves: "<<total_moves<<"\n";
-    if(total_moves<24){
+    if(total_moves<24 || total_moves>42){
        eval_score=Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
        child_node->_Avg_Value = eval_score;
     }else{
@@ -213,7 +213,7 @@ Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves) {
             if(eval_score > turn_stats.Wrate) eval_score = turn_stats.Pwcor;
             else if(eval_score < turn_stats.Lrate) eval_score = 1 - turn_stats.Plcor;
             else {
-                eval_score = (eval_score ) / 2.0f +0.5f;
+                eval_score=Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
             }
         }
         child_node->_Avg_Value = eval_score;

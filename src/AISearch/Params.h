@@ -53,10 +53,10 @@ constexpr int _BOX_NUM=25;
 // UCT_参数
 constexpr int UCT__TIMES__MC=1000;
 constexpr int UCT__ALL_TIMES=20000000;
-constexpr int UCT__LIMIT_TIME1=1;
-constexpr int UCT__LIMIT_TIME2=1;
-constexpr int UCT__LIMIT_TIME3=1;
-constexpr int UCT__LIMIT_TIME4=1;
+constexpr int UCT__LIMIT_TIME1=2;
+constexpr int UCT__LIMIT_TIME2=2;
+constexpr int UCT__LIMIT_TIME3=2;
+constexpr int UCT__LIMIT_TIME4=2;
 constexpr int UCT__RANGE_FILTER=30;
 
 // 多线程参数

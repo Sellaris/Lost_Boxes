@@ -177,7 +177,7 @@ Info GetInfo(const Board& board, int currentPlayer) {
                 map_r = 2 * r1 ;
                 map_c = 2 * c1 - 1;
             }
-            std::cout<<"map_r="<<map_r<<" map_c="<<map_c<<"\n";
+            //std::cout<<"map_r="<<map_r<<" map_c="<<map_c<<"\n";
             edges[q_idx].cut = !board.is_Free_Line(map_r, map_c);
         }
     }
