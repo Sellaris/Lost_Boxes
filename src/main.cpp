@@ -323,12 +323,12 @@ void show_Information(){
 // 显示玩家类型选择按钮
 void showSetPlayer(){
     sf::Text first_human_text(L"玩家",font,40);
-    sf::Text first_ai_old_text(L"旧机",font,40);
-    sf::Text first_ai_new_text(L"新机",font,40);
+    sf::Text first_ai_old_text(L"UCT",font,40);
+    sf::Text first_ai_new_text(L"置换",font,40);
     sf::Text first_ai_ann_text(L"ANN",font,40);
     sf::Text second_human_text(L"玩家",font,40);
-    sf::Text second_ai_old_text(L"旧机",font,40);
-    sf::Text second_ai_new_text(L"新机",font,40);
+    sf::Text second_ai_old_text(L"UCT",font,40);
+    sf::Text second_ai_new_text(L"置换",font,40);
     sf::Text second_ai_ann_text(L"ANN",font,40);
     first_human_text.setPosition(1110,260);
     first_ai_old_text.setPosition(1110,260);
@@ -357,7 +357,7 @@ void showSetPlayer(){
             mainWindow.draw(first_ai_new_text);
             break;        
         case AI_ANN_MODE:
-            first_button.setFillColor(sf::Color(46,125,50));
+            first_button.setFillColor(sf::Color(90,125,50));
             mainWindow.draw(first_button);
             mainWindow.draw(first_ai_ann_text);
             break;
@@ -380,7 +380,7 @@ void showSetPlayer(){
             mainWindow.draw(second_ai_new_text);
             break;        
         case AI_ANN_MODE:
-            second_button.setFillColor(sf::Color(46,125,50));
+            second_button.setFillColor(sf::Color(90,125,50));
             mainWindow.draw(second_button);
             mainWindow.draw(second_ai_ann_text);
             break;
@@ -492,7 +492,7 @@ void AIMove(){
         std::cout << "\n";
         std::vector<fann_type> input = extract_features(*gameBoard, nowPlayer);
         for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
-        std::cout<<"\n当前局面胜率="<<processANN(input)/2+0.5f<<"%\n";
+        std::cout<<(nowPlayer == BLACK ? "先手" : "后手")<<"当前局面胜率="<<processANN(input)/2+0.5f<<"%\n";
         if(!ai_steps.empty())
             nowMove = ai_steps.back();
         nowPlayer = -nowPlayer;

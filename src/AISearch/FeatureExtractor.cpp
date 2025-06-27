@@ -188,13 +188,10 @@ Info GetInfo(const Board& board, int currentPlayer) {
             nodes[edges[i].node_indices[1]].degree++;
         }
     }
-    // Add boundary degrees for non-corner ground nodes
-    for (int j = 1; j <= 5; ++j) {
-        nodes[j].degree += 3;           // node[0][j]
-        nodes[6*7 + j].degree += 3;     // node[6][j]
-        nodes[j*7].degree += 3;         // node[j][0]
-        nodes[j*7 + 6].degree += 3;     // node[j][6]
-    }
+    // Note: Boundary (ground) nodes are intentionally not given extra degrees.
+    // Their degree is naturally 0 or 1 from their single link to the interior,
+    // correctly identifying them as chain terminators rather than junctions.
+    // This restricts chain and loop analysis to the actual 5x5 game grid.
     
     // 4. Calculate Feature 0-4: Point features (from 5x5 inner grid of nodes)
     for (int i = 1; i <= 5; ++i) {
