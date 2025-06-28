@@ -51,7 +51,7 @@ constexpr int _BOX_LEN=5;
 constexpr int _BOX_NUM=25;
 
 // UCT_参数
-constexpr int UCT__TIMES__MC=1000;
+constexpr int UCT__TIMES__MC=100;
 constexpr int UCT__ALL_TIMES=20000000;
 constexpr int UCT__LIMIT_TIME1=10;
 constexpr int UCT__LIMIT_TIME2=10;

@@ -71,7 +71,7 @@ void showLoadBoard();
 void handleButtons(int x,int y);
 void handleBoard(int x,int y);
 bool contains(sf::RectangleShape &box,int x,int y);
-std::future<void> work;
+std::future<float> work;
 int status=0;
 void AIMove();
 
@@ -446,26 +446,27 @@ void AIMove(){
         if(nowPlayer==BLACK && black_mode!=HUMAN_MODE){
             ai_steps.clear();
             if(black_mode==AI_OLD_MODE){
-                work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+                // work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else if (black_mode==AI_NEW_MODE){
-                work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+                // work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else if (black_mode==AI_ANN_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_TT_ANN, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
         }else if(nowPlayer==WHITE && white_mode!=HUMAN_MODE){
             ai_steps.clear();
             if(white_mode==AI_OLD_MODE){
-                work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+                // work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else if (white_mode==AI_NEW_MODE){
-                work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+                // work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else if (white_mode==AI_ANN_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_TT_ANN, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
         }
     }
     if(status){
-        work.wait();
-        work.get();
+        int turn_at_search_start = top + 1; // 记录搜索开始时的回合数
+        float mcts_win_rate = work.get();
+
         if(nowPlayer==BLACK){
             black_time.stop();
         }else{
@@ -494,20 +495,32 @@ void AIMove(){
         std::vector<fann_type> input = extract_features(*gameBoard, nowPlayer);
         for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
         
-        int total_moves=top;
-        double eval_score=processANN(input);
-        auto it = AnnStats::stats_map.find(total_moves);
-        if (it != AnnStats::stats_map.end()) {
-            const AnnStats::Stats& turn_stats = it->second;
-            if(eval_score > turn_stats.Wrate) eval_score = turn_stats.Pwcor;
-            else if(eval_score < turn_stats.Lrate) eval_score = 1 - turn_stats.Plcor;
-            else {
+        float eval_score;
+        if (mcts_win_rate != -1.0f) {
+            eval_score = mcts_win_rate;
+            if (turn_at_search_start < 24) {
+                std::cout << "(纯随机 MCTS) ";
+            } else {
+                std::cout << "(ANN指导 MCTS) ";
+            }
+        } else {
+            // 回退到旧的评估方式
+            int total_moves = top;
+            eval_score = processANN(input);
+            auto it = AnnStats::stats_map.find(total_moves);
+            if (it != AnnStats::stats_map.end()) {
+                const AnnStats::Stats& turn_stats = it->second;
+                if(eval_score > turn_stats.Wrate) eval_score = turn_stats.Pwcor;
+                else if(eval_score < turn_stats.Lrate) eval_score = 1 - turn_stats.Plcor;
+                else {
+                    eval_score = (eval_score ) / 2.0f +0.5f;
+                }
+            } else {
                 eval_score = (eval_score ) / 2.0f +0.5f;
             }
-            std::cout<<"total_moves="<<total_moves<<"\n";
-        }else{
-            eval_score = (eval_score ) / 2.0f +0.5f;
+            std::cout << "(ANN) ";
         }
+
         std::cout<<(nowPlayer == BLACK ? "先手" : "后手")<<"当前局面胜率="<<eval_score*100<<"%\n";
         if(!ai_steps.empty())
             nowMove = ai_steps.back();

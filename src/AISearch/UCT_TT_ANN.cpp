@@ -34,8 +34,8 @@ static std::mutex g_tt_mutex;
 // --- 前向声明 ---
 float Process_UCT_TT_ANN(Node& b, int& total, int total_moves);
 Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves);
-void Move_UCT_TT_ANN(Board& cb, int player, std::vector<POS>& pace, int total_moves);
-void _Sacrifice_Move_UCT_TT_ANN(Board& CB, int Player, std::vector<POS>& pace, int total_moves);
+float Move_UCT_TT_ANN(Board& cb, int player, std::vector<POS>& pace, int total_moves);
+float _Sacrifice_Move_UCT_TT_ANN(Board& CB, int Player, std::vector<POS>& pace, int total_moves);
 void Situation_Move_latter_TT_ANN(Board& CB, int Player, std::vector<POS>& pace, int total_moves);
 int Filter_Turn_RAND_TT_ANN(Board&CB,int Player);
 float Evalution_TAKE_Filter_OF_MC_TT_ANN(Board&CB,int NextPlayer,int _Winner);
@@ -76,7 +76,9 @@ float take_ucb_value(const Node* node, int total_parent_visits) {
     if (node->Times == 0) {
         return 1e9; // 优先探索未访问过的节点
     }
-    return node->_Avg_Value + C * sqrt(log(static_cast<double>(total_parent_visits)) / node->Times);
+    // 这里的node是子节点。node->_Avg_Value是子节点玩家的胜率。
+    // 父节点做决策时，需要从自己的视角评估，所以要用 1.0 - 子节点的胜率。
+    return (1.0f - node->_Avg_Value) + C * sqrt(log(static_cast<double>(total_parent_visits)) / node->Times);
 }
 
 /**
@@ -156,14 +158,153 @@ float Evalution_TAKE_Filter_OF_MC_TT_ANN(Board&CB,int NextPlayer,int _Winner){
     for(auto&th:threads)th.join();
     return static_cast<float>(_MCE.load())/static_cast<float>(UCT__TIMES__MC);
 }
-float Evalution_TAKE_Filter_OF_TT_ANN(Board&CB,int NextPlayer,int _Winner){
-    //std::vector<fann_type> input(25, 0.5f);
-    std::vector<fann_type> input = extract_features(CB, NextPlayer);
-    //std::cout<<"input: ";
-    //for(fann_type i:input) std::cout<<std::fixed<<std::setprecision(4)<<i<<" ";
-    //std::cout<<std::endl;
-    float output = processANN(input);//test
-    return output;
+
+// --- 新增: 纯随机蒙特卡洛模拟 (返回标准胜率) ---
+float PureRandom_Rollout(Board& board, int starting_player) {
+    Board sim_board = board;
+    int current_player = starting_player;
+
+    while (sim_board.TAKE__Free_Edge_Num() != 0) {
+        // 总是使用基于规则的快速模拟
+        current_player = Filter_Turn_RAND_TT_ANN(sim_board, current_player);
+    }
+    
+    int winner = TAKE_Winner_OF_Board(sim_board, -current_player);
+    return (winner == starting_player) ? 1.0f : 0.0f;
+}
+
+void multi_thread_pure_random_rollout(Board& board, std::atomic<int>& total_wins, int starting_player, int simulations_per_thread) {
+    int local_wins = 0;
+    for (int i = 0; i < simulations_per_thread; ++i) {
+        Board sim_board = board; // 每个模拟都有自己的副本
+        local_wins += static_cast<int>(PureRandom_Rollout(sim_board, starting_player));
+    }
+    total_wins += local_wins;
+}
+
+float Evalution_PureRandom_Rollout_MT(Board& board, int starting_player) {
+    if (UCT__TIMES__MC <= 0) return 0.5f;
+
+    std::atomic<int> total_wins(0);
+    std::vector<std::thread> threads;
+    threads.reserve(THREAD_COUNT);
+
+    int sims_per_thread = UCT__TIMES__MC / THREAD_COUNT;
+    int remaining_sims = UCT__TIMES__MC % THREAD_COUNT;
+
+    for (int i = 0; i < THREAD_COUNT; ++i) {
+        int thread_sim_count = sims_per_thread + (i < remaining_sims ? 1 : 0);
+        if (thread_sim_count > 0) {
+            threads.emplace_back(std::thread(multi_thread_pure_random_rollout, std::ref(board), std::ref(total_wins), starting_player, thread_sim_count));
+        }
+    }
+
+    for (auto& th : threads) {
+        th.join();
+    }
+
+    return static_cast<float>(total_wins.load()) / static_cast<float>(UCT__TIMES__MC);
+}
+
+// --- 新增：ANN指导的蒙特卡洛模拟 ---
+/**
+ * @brief 使用ANN指导的蒙特卡洛模拟来评估一个局面
+ * @param board 模拟开始时的棋盘状态
+ * @param starting_player 模拟开始时的玩家，评估结果将从该玩家视角返回 (1.0 for win, 0.0 for loss)
+ * @param total_moves_at_start 模拟开始时的总步数
+ * @return float 返回 starting_player 的胜率 (1.0 或 0.0)
+ */
+float ANNGUIDED_Rollout(Board& board, int starting_player, int total_moves_at_start) {
+    Board sim_board = board;
+    int current_player = starting_player;
+    int current_total_moves = total_moves_at_start;
+
+    while (sim_board.TAKE__Free_Edge_Num() != 0) {
+        // 根据总步数决定是否使用ANN进行指导
+        bool use_ann_guidance = (current_total_moves >= 24);
+
+        if (use_ann_guidance) {
+            Board_Box sim_board_box(sim_board); // 从Board创建Board_Box
+            POS available_moves[60];
+            int move_num = sim_board_box.TAKE_Filter_Moves(available_moves);
+
+            if (move_num == 0) {
+                // 没有可走的步，轮到对方
+                current_player = -current_player;
+                current_total_moves++;
+                continue;
+            }
+
+            POS best_move = available_moves[0];
+            float best_score = -1e9f; // 当前玩家的最大化目标
+
+            for (int i = 0; i < move_num; ++i) {
+                Board temp_board = sim_board;
+                temp_board.move(current_player, available_moves[i], 0);
+
+                int next_player = -current_player;
+                
+                // ANN评估的是下一步（对手）的局面
+                std::vector<fann_type> features = extract_features(temp_board, next_player);
+                float opponent_win_rate = processANN(features);
+                
+                // 对手胜率越高，对我方越不利。我方的价值是 1.0 - 对手胜率
+                float my_win_rate = 1.0f - opponent_win_rate;
+
+                if (my_win_rate > best_score) {
+                    best_score = my_win_rate;
+                    best_move = available_moves[i];
+                }
+            }
+            sim_board.move(current_player, best_move, 0);
+        } else {
+            // 对于早期和残局，使用基于规则的快速模拟
+            Filter_Turn_RAND_TT_ANN(sim_board, current_player);
+        }
+
+        current_player = -current_player;
+        current_total_moves++;
+    }
+
+    // 游戏结束，判断胜者
+    // 循环结束时，current_player 是下一个要走棋的玩家，但已经没有棋可走
+    // 因此，上一个走棋的玩家是 -current_player
+    int winner = TAKE_Winner_OF_Board(sim_board, -current_player);
+    return (winner == starting_player) ? 1.0f : 0.0f;
+}
+
+// --- 新增：多线程ANN指导的蒙特卡洛模拟 ---
+void multi_thread_ann_guided_rollout(Board& board, std::atomic<int>& total_wins, int starting_player, int total_moves_at_start, int simulations_per_thread, int thread_id) {
+    int local_wins = 0;
+    for (int i = 0; i < simulations_per_thread; ++i) {
+        Board sim_board = board; // 每个模拟都有自己的副本
+        local_wins += static_cast<int>(ANNGUIDED_Rollout(sim_board, starting_player, total_moves_at_start));
+    }
+    total_wins += local_wins;
+}
+
+float Evalution_ANNGUIDED_Rollout_MT(Board& board, int starting_player, int total_moves_at_start) {
+    if (UCT__TIMES__MC <= 0) return 0.5f; // 防止除零
+
+    std::atomic<int> total_wins(0);
+    std::vector<std::thread> threads;
+    threads.reserve(THREAD_COUNT);
+
+    int sims_per_thread = UCT__TIMES__MC / THREAD_COUNT;
+    int remaining_sims = UCT__TIMES__MC % THREAD_COUNT;
+
+    for (int i = 0; i < THREAD_COUNT; ++i) {
+        int thread_sim_count = sims_per_thread + (i < remaining_sims ? 1 : 0);
+        if (thread_sim_count > 0) {
+            threads.emplace_back(std::thread(multi_thread_ann_guided_rollout, std::ref(board), std::ref(total_wins), starting_player, total_moves_at_start, thread_sim_count, i));
+        }
+    }
+
+    for (auto& th : threads) {
+        th.join();
+    }
+
+    return static_cast<float>(total_wins.load()) / static_cast<float>(UCT__TIMES__MC);
 }
 
 /**
@@ -198,26 +339,20 @@ Node* expand_UCT_Node_TT_ANN(Node& parent_node, int total_moves) {
     auto new_node_ptr = std::make_unique<Node>(child_player, child_board._MAP_, false);
     Node* child_node = new_node_ptr.get();
 
-    // 使用蒙特卡洛模拟进行初始评估
+    // 根据总步数选择评估策略
     Board eval_board(child_node->_MAP_);
-    float eval_score = 0;
-   //std::cout<<"total_moves: "<<total_moves<<"\n";
-    if(total_moves<24 || total_moves>42){
-       eval_score=Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
-       child_node->_Avg_Value = eval_score;
-    }else{
-        eval_score=Evalution_TAKE_Filter_OF_TT_ANN(eval_board, child_player, parent_node.Owner);
-        auto it = AnnStats::stats_map.find(total_moves);
-        if (it != AnnStats::stats_map.end()) {
-            const AnnStats::Stats& turn_stats = it->second;
-            if(eval_score > turn_stats.Wrate) eval_score = turn_stats.Pwcor;
-            else if(eval_score < turn_stats.Lrate) eval_score = 1 - turn_stats.Plcor;
-            else {
-                eval_score=Evalution_TAKE_Filter_OF_MC_TT_ANN(eval_board, child_player, parent_node.Owner);
-            }
-        }
-        child_node->_Avg_Value = eval_score;
+    float eval_score;
+    int current_total_moves = total_moves + 1;
+
+    if (current_total_moves < 24) {
+        // 开局阶段：使用纯随机蒙特卡洛模拟
+        eval_score = Evalution_PureRandom_Rollout_MT(eval_board, child_node->Owner);
+    } else {
+        // 中局及以后：使用ANN指导的蒙特卡洛模拟
+        eval_score = Evalution_ANNGUIDED_Rollout_MT(eval_board, child_node->Owner, current_total_moves);
     }
+    child_node->_Avg_Value = eval_score;
+    
 
     // 存入内存池和置换表
     g_node_pool.push_back(std::move(new_node_ptr));
@@ -244,7 +379,7 @@ void print_tt_stats() {
     std::cerr << " 命中次数: " << tt_hits << std::endl;
     std::cerr << " 命中率: " << hit_rate * 100 << "%\n";
     std::cerr << " 当前节点数: " << g_node_pool.size() << std::endl;
-    std::cerr << " 搜索次数 " << total_simulations << "\n\n";
+    std::cerr << " 搜索次数 " << total_simulations << "*" << UCT__TIMES__MC << "\n\n";
 }
 
 /**
@@ -261,7 +396,9 @@ float Process_UCT_TT_ANN(Node& b, int& total, int total_moves) {
 
 
     if (b.Board_Winner != 0) {
-        b._Avg_Value = (b.Board_Winner == b.Owner) ? 0.0f : 1.0f;
+        // _Avg_Value 应该代表当前节点玩家(b.Owner)的胜率。
+        // 如果获胜者是自己，胜率为1.0，否则为0.0。
+        b._Avg_Value = (b.Board_Winner == b.Owner) ? 1.0f : 0.0f;
         total++;
         return 1.0f - b._Avg_Value;
     }
@@ -302,12 +439,12 @@ float Process_UCT_TT_ANN(Node& b, int& total, int total_moves) {
 /**
  * @brief 使用带置换表的UCT算法进行移动决策 (从UCT.cpp改编)
  */
-void Move_UCT_TT_ANN(Board& cb, int player, std::vector<POS>& pace, int total_moves) {
+float Move_UCT_TT_ANN(Board& cb, int player, std::vector<POS>& pace, int total_moves) {
     // 强制吃C型格的逻辑已经移到Turn_Move_Game_TT_ANN中，这里只负责MCTS搜索和落子
     // 确保在进入此函数时，所有C型格都已被处理
-
     std::string root_key = generate_key(cb, player);
     Node* root_node = nullptr;
+    float best_win_rate = -1.0f; // 移到外部作用域并初始化
 
     { // 加锁以安全地访问或创建根节点
         std::lock_guard<std::mutex> lk(g_tt_mutex);
@@ -345,15 +482,19 @@ void Move_UCT_TT_ANN(Board& cb, int player, std::vector<POS>& pace, int total_mo
             const POS& best_move = root_node->Node_Moves[best_node_idx];
             cb.move(player, best_move, total_moves + pace.size() + 1);
             pace.emplace_back(best_move);
+
+            // 从当前玩家（父节点）的角度计算胜率
+            Node* best_child = root_node->_Child_NODES[best_node_idx];
+            best_win_rate = 1.0f - best_child->_Avg_Value;
         } else {
             // 如果由于某种原因没有可选的子节点（例如时间太短），则不走棋
         }
     }    
     print_tt_stats();
-
+    return best_win_rate;
 }
 
-void _Sacrifice_Move_UCT_TT_ANN(Board&CB,int Player,vector<POS>&pace, int total_moves){
+float _Sacrifice_Move_UCT_TT_ANN(Board&CB,int Player,vector<POS>&pace, int total_moves){
     Board_Box Dead(CB);
     bool Dead_Chain=Dead.TAKE_Dead_Chain_Exist();
     bool Dead_Circle=Dead.TAKE_Dead_Circle_Exist();
@@ -368,7 +509,7 @@ void _Sacrifice_Move_UCT_TT_ANN(Board&CB,int Player,vector<POS>&pace, int total_
         POS Box_Num=Dead.TAKE_Early_Rational_Box_Num();
         if(Box_Num.first-Box_Num.second<=Box_Num_Sacrifice){
             CB._TAKE_All_C_TYPE_Boxes(Player,pace, total_moves);
-            Move_UCT_TT_ANN(CB,Player,pace, total_moves);
+            return Move_UCT_TT_ANN(CB,Player,pace, total_moves);
         }else{
             POS DCMove;
             switch(Box_Num_Sacrifice){
@@ -405,8 +546,9 @@ void _Sacrifice_Move_UCT_TT_ANN(Board&CB,int Player,vector<POS>&pace, int total_
         }
     }else{
         CB._TAKE_All_C_TYPE_Boxes(Player,pace, total_moves);
-        Move_UCT_TT_ANN(CB,Player,pace, total_moves);
+        return Move_UCT_TT_ANN(CB,Player,pace, total_moves);
     }
+    return -1.0f; // 未执行MCTS搜索
 }
 
 void Situation_Move_latter_TT_ANN(Board&CB,int Player,vector<POS>&pace, int total_moves){
@@ -481,7 +623,7 @@ void Clear_UCT_TT_ANN() {
     std::cerr << "[置换表已清空]" << std::endl;
 }
 
-void Turn_Move_Game_TT_ANN(Board &CB, int Player, int *status, std::vector<POS> &pace, int total_moves) {
+float Turn_Move_Game_TT_ANN(Board &CB, int Player, int *status, std::vector<POS> &pace, int total_moves) {
     // 采用与旧版AI相同的逻辑分发器
     Board local_board = CB; // 创建一个本地副本进行操作，不修改原始棋盘
     Board Test = local_board;
@@ -490,11 +632,13 @@ void Turn_Move_Game_TT_ANN(Board &CB, int Player, int *status, std::vector<POS> 
 
     bool LatterSituation = (Test.TAKE_Num_of_FILTER_Move() == 0);
 
+    float win_rate = -1.0f;
     if(!LatterSituation) {
-        _Sacrifice_Move_UCT_TT_ANN(local_board, Player, pace, total_moves);
+        win_rate = _Sacrifice_Move_UCT_TT_ANN(local_board, Player, pace, total_moves);
     } else {
         Situation_Move_latter_TT_ANN(local_board, Player, pace, total_moves);
     }
     
     *status = 1; // 标记为已完成决策
+    return win_rate;
 } 
