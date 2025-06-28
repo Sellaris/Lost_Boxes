@@ -184,6 +184,10 @@ Info GetInfo(const Board& board, int currentPlayer) {
 
             //std::cout<<"map_r="<<map_r<<" map_c="<<map_c<<"\n";
             edges[q_idx].cut = !board.is_Free_Line(map_r, map_c);
+            if(edges[q_idx].cut){
+                if(map_r==0 || map_c==0 || map_r==10 || map_c==10)
+                    info.Point[0]--;
+            }
         }
     }
     info.Link[0] = free_edges;
