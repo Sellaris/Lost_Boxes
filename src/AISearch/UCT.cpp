@@ -77,11 +77,12 @@ int TAKE_Filter_Winner_OF_MC(Board&CB,int NextPlayer,int&Rating){
  * 输出：无
  * 算法：根据线程ID分配模拟任务，执行指定次数的蒙特卡洛模拟并累加结果
  */
-void multi_thread_func(Board&_MCB,std::atomic<int>&_MCE,int NextPlayer,int _Winner,int UCT__TIMES__MC,int thread_id){
+void multi_thread_func(Board _MCB,std::atomic<int>&_MCE,int NextPlayer,int _Winner,int UCT__TIMES__MC,int thread_id){
     int local__MCE=0;
     for(int i=thread_id;i<UCT__TIMES__MC;i+=THREAD_COUNT){
         int CNT=0,WIN=0;
-        if(TAKE_Filter_Winner_OF_MC(_MCB,NextPlayer,CNT)==_Winner)WIN++;
+        Board COPY_LOCAL_MCB= _MCB;
+        if(TAKE_Filter_Winner_OF_MC(COPY_LOCAL_MCB,NextPlayer,CNT)==_Winner)WIN++;
         local__MCE+=WIN+CNT-13;
     }
     _MCE+=local__MCE;
@@ -95,15 +96,15 @@ void multi_thread_func(Board&_MCB,std::atomic<int>&_MCE,int NextPlayer,int _Winn
  * 算法：创建多个线程并行执行蒙特卡洛模拟，最后计算平均分数
  */
 float Evalution_TAKE_Filter_OF_MC(Board&CB,int NextPlayer,int _Winner){
-    Board _MCB=CB;
+    //Board _MCB=CB;
     std::atomic<int>_MCE(0);
     std::vector<std::thread>threads;
     threads.reserve(THREAD_COUNT);
     for(int i=0;i<THREAD_COUNT;i++){
-        threads.emplace_back(std::thread(multi_thread_func,std::ref(_MCB),std::ref(_MCE),NextPlayer,_Winner,UCT__TIMES__MC,i));
+        threads.emplace_back(std::thread(multi_thread_func,CB,std::ref(_MCE),NextPlayer,_Winner,UCT__TIMES__MC,i));
     }
     for(auto&th:threads)th.join();
-    return static_cast<float>(_MCE.load())/static_cast<float>(UCT__TIMES__MC);
+    return static_cast<float>((float)_MCE.load())/(float)static_cast<float>(UCT__TIMES__MC);
 }
 
 /**

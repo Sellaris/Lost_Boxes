@@ -128,11 +128,12 @@ int TAKE_Filter_Winner_OF_MC_TT(Board&CB,int NextPlayer,int&Rating){
     return TAKE_Winner_OF_Board(CB,-player,-NextPlayer,Rating);
 }
 
-void multi_thread_func_tt(Board&_MCB,std::atomic<int>&_MCE,int NextPlayer,int _Winner,int UCT__TIMES__MC,int thread_id){
+void multi_thread_func_tt(Board _MCB,std::atomic<int>&_MCE,int NextPlayer,int _Winner,int UCT__TIMES__MC,int thread_id){
     int local__MCE=0;
     for(int i=thread_id;i<UCT__TIMES__MC;i+=THREAD_COUNT){
         int CNT=0,WIN=0;
-        if(TAKE_Filter_Winner_OF_MC_TT(_MCB,NextPlayer,CNT)==_Winner)WIN++;
+        Board COPY_LOCAL_MCB= _MCB;
+        if(TAKE_Filter_Winner_OF_MC_TT(COPY_LOCAL_MCB,NextPlayer,CNT)==_Winner)WIN++;
         local__MCE+=WIN+CNT-13;
     }
     _MCE+=local__MCE;
