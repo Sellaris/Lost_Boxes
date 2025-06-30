@@ -452,8 +452,8 @@ void Clear_UCT_TT() {
 void Turn_Move_Game_TT(Board &CB, int Player, int *status, std::vector<POS> &pace, int total_moves) {
     // 采用与旧版AI相同的逻辑分发器
     Board Test = CB;
-    int move_count_dummy = 0; // 这个仅用于探测，不影响主棋盘
-    Test._TAKE_All_C_Boxes(Player, move_count_dummy, false); // 在副本上探测吃C
+    int move_count = total_moves + pace.size();
+    Test._TAKE_All_C_Boxes(Player, move_count, true); // 在副本上探测吃C
 
     bool LatterSituation = (Test.TAKE_Num_of_FILTER_Move() == 0);
 
