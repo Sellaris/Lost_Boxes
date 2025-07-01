@@ -60,6 +60,6 @@ constexpr int UCT__LIMIT_TIME4=10;
 constexpr int UCT__RANGE_FILTER=20;
 
 // 多线程参数
-const int THREAD_COUNT=std::thread::hardware_concurrency(); // 新增线程数常量
+const int THREAD_COUNT=12; // 新增线程数常量
 
 #endif

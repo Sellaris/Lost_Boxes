@@ -9,7 +9,8 @@
 #include <ctime>
 #include <thread>
 #include <chrono>
-thread_local std::mt19937_64 rng(std::chrono::system_clock::now().time_since_epoch().count());
+#include <vector>
+thread_local std::mt19937_64 rng(std::chrono::system_clock::now().time_since_epoch().count()*_threadid);
 
 
 /**
@@ -174,23 +175,59 @@ void Move_UCT(Board&CB,int Player,vector<POS>&pace, int total_moves){
     (total_moves < 30 ?UCT__LIMIT_TIME3 : UCT__LIMIT_TIME4 )); // 根据总移动数调整时间限制
 
     if(UCT_B.Board_Winner==0){
-        int Total=0;
-        clock_t start=clock();
-        for(int i=0;i<UCT__ALL_TIMES;i++){
-            Process_UCT(UCT_B,Total);
-            if((clock()-start)/CLOCKS_PER_SEC>=UCT__LIMIT_TIME)break;
+        if (UCT_B.Total_Child == 0) {
+            return;
         }
-        int Best_Node=0;
-        float Best_Avg_Value=0;
-        for(int i=0;i<UCT_B._Exist_Child;i++){
-            if(UCT_B._Child_NODES[i]->_Avg_Value>=Best_Avg_Value){
-                Best_Node=i;
-                Best_Avg_Value=UCT_B._Child_NODES[i]->_Avg_Value;
+        std::vector<Node> thread_trees;
+        thread_trees.reserve(THREAD_COUNT);
+        for(int i = 0; i < THREAD_COUNT; ++i) {
+            thread_trees.emplace_back(UCT_B);
+        }
+        std::vector<std::thread> threads;
+        threads.reserve(THREAD_COUNT);
+        auto start_time = std::chrono::steady_clock::now();
+        auto uct_worker = [&](Node& tree_root) {
+            int total_sims_thread = 0;
+            while(true) {
+                auto current_time = std::chrono::steady_clock::now();
+                std::chrono::duration<double> elapsed_seconds = current_time - start_time;
+                if(elapsed_seconds.count() >= UCT__LIMIT_TIME) {
+                    break;
+                }
+                Process_UCT(tree_root, total_sims_thread);
+            }
+        };
+        for(int i = 0; i < THREAD_COUNT; ++i){
+            threads.emplace_back(uct_worker, std::ref(thread_trees[i]));
+        }
+        for(auto& th : threads) {
+            th.join();
+        }
+        std::vector<long long> total_visits_per_move(UCT_B.Total_Child, 0);
+        std::vector<double> combined_value_sum(UCT_B.Total_Child, 0.0);
+        for (const auto& tree : thread_trees) {
+            for (int i = 0; i < tree._Exist_Child; ++i) {
+                total_visits_per_move[i] += tree._Child_NODES[i]->Times;
+                combined_value_sum[i] += tree._Child_NODES[i]->_Avg_Value * tree._Child_NODES[i]->Times;
             }
         }
-        CB.move(Player,{UCT_B.Node_Moves[Best_Node].first,UCT_B.Node_Moves[Best_Node].second}, total_moves + pace.size() + 1);
-        pace.emplace_back(UCT_B.Node_Moves[Best_Node].first,UCT_B.Node_Moves[Best_Node].second);
-        UCT_Tree_DEL(UCT_B);
+        int best_node_idx = 0;
+        float best_avg_value = -1.0f;
+        for (int i = 0; i < UCT_B.Total_Child; ++i) {
+            float current_avg_value = 0.0f;
+            if (total_visits_per_move[i] > 0) {
+                current_avg_value = static_cast<float>(combined_value_sum[i] / total_visits_per_move[i]);
+            }
+            if (current_avg_value >= best_avg_value) {
+                best_avg_value = current_avg_value;
+                best_node_idx = i;
+            }
+        }
+        CB.move(Player,{UCT_B.Node_Moves[best_node_idx].first,UCT_B.Node_Moves[best_node_idx].second}, total_moves + pace.size() + 1);
+        pace.emplace_back(UCT_B.Node_Moves[best_node_idx].first,UCT_B.Node_Moves[best_node_idx].second);
+        for (auto& tree : thread_trees) {
+            UCT_Tree_DEL(tree);
+        }
     }else{
         CB._TAKE_All_C_TYPE_Boxes(Player,pace, total_moves);
         Situation_Move_latter(CB,Player,pace, total_moves);
