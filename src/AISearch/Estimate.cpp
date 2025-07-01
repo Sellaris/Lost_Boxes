@@ -1,6 +1,5 @@
 #include "Estimate.h"
 
-
 /**
  * @brief INFO__BOX_默认构造函数
  * @details 初始化格子信息，设置默认类型和链类型ID
@@ -927,4 +926,241 @@ int Board_Box::TAKE__Free__Moves(POS _Moves[60]) {
         }
     }
     return Move_Num;
+}
+
+/**
+ * @brief 获取棋盘上未被占据的格子数
+ * @return int 未被占据的格子数
+ */
+int Board_Box::get_board_size() {
+    return _BOX_NUM - (this->BOX_of_BLACK + this->BOX_of_WHITE);
+}
+
+/**
+ * @brief 计算长链的数量
+ * @return int 长链数量
+ */
+int Board_Box::count_long_chains() {
+    int count = 0;
+    for (int i = 1; i < 25; ++i) {
+        if (Chains_OF_Board_Box[i].Type == Long_Chain) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief 计算环的数量
+ * @return int 环数量
+ */
+int Board_Box::count_loops() {
+    int count = 0;
+    for (int i = 1; i < 25; ++i) {
+        if (Chains_OF_Board_Box[i].Type == Circle) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief 计算3格长链的数量
+ * @return int 3格长链数量
+ */
+int Board_Box::count_3_chains() {
+    int count = 0;
+    for (int i = 1; i < 25; ++i) {
+        if (Chains_OF_Board_Box[i].Type == Long_Chain && Chains_OF_Board_Box[i]._BOX__NUM_OF_CHAIN == 3) {
+            count++;
+        }
+    }
+    return count;
+}
+
+/**
+ * @brief 计算4格环的数量
+ * @return int 4格环数量
+ */
+int Board_Box::count_4_loops() {
+    int count = 0;
+    for (int i = 1; i < 25; ++i) {
+        if (Chains_OF_Board_Box[i].Type == Circle && Chains_OF_Board_Box[i]._BOX__NUM_OF_CHAIN == 4) {
+            count++;
+        }
+    }
+    return count;
+}
+int Board_Box::count_all_chains() {
+    int count = 0;
+    for (int i = 1; i < 25; i++) {
+        if (Chains_OF_Board_Box[i].Type == Long_Chain || Chains_OF_Board_Box[i].Type == Short_Chain) {
+            count++;
+        }
+    }
+    return count;
+}
+/**
+ * @brief 计算tb(G)值
+ * @return int tb(G)值
+ */
+int Board_Box::calculate_tb() {
+    int num_loops = count_loops();
+    int num_all_chains = count_all_chains();
+    int num_3_chains = count_3_chains();
+
+    if (num_loops > 0 && num_3_chains > 0) return 6;
+    if (num_loops > 0) return 8;
+    if (num_all_chains == 0 && num_loops == 0) return 0; // "otherwise" case
+    return 4;
+}
+
+/**
+ * @brief 计算控制值 c(G)
+ * @return int 控制值
+ */
+int Board_Box::control_value() {
+    int size_G = get_board_size();
+    int long_chains = count_long_chains();
+    int loops = count_loops();
+    int tb_G = calculate_tb();
+
+    return size_G - 4 * long_chains - 8 * loops + tb_G;
+}
+
+/**
+ * @brief 对当前局面进行估值（简化版）
+ * @return int 估值分数
+ */
+int Board_Box::evaluate() {
+    Chains_Define(true);
+    int cv = control_value();
+    int num_3_chains = count_3_chains();
+    int num_4_loops = count_4_loops();
+    int size_G = get_board_size();
+    int value = 0; 
+
+    if (cv >= 2) {
+        value = cv;
+    } else if (cv == 0) {
+        value = 0;
+    }
+
+    if (num_3_chains == 0 || (num_3_chains == 1 && (size_G % 4 == 3))) {
+        if (cv + num_4_loops >= 2) {
+            value = 0;
+        } else {
+            int mod_cv = cv % 8;
+            if (mod_cv == 0) value = 1;
+            else if (mod_cv == 1 || mod_cv == -1 || mod_cv == 7) value = 2;
+            else if (mod_cv == 2 || mod_cv == -2 || mod_cv == 6) value = 3;
+            else if (mod_cv == 3 || mod_cv == -3 || mod_cv == 5) value = 4;
+            else value = 4;
+        }
+    }
+
+    if (cv + 4 * num_4_loops < 2) {
+        if (size_G % 2 != 0) {
+            value = (num_4_loops % 2 != 0) ? 1 : 3;
+        }
+    }
+
+    if (size_G % 4 == 2) {
+        value = 2;
+    } else if (size_G % 4 == 0) {
+        value = (num_4_loops % 2 != 0) ? 0 : 4;
+    } else { 
+        value = 1;
+    }
+
+    return value;
+}
+
+
+/**
+ * @brief 检查链的构成是否符合 "4l + (anything except 3+3)"
+ * @details "4l" 被解释为没有长度为1或2的链。"anything except 3+3" 被解释为3链的数量不等于2。
+ * @return bool 符合条件返回true
+ */
+bool Board_Box::check_chain_composition() {
+    int num_1_chains = 0;
+    int num_2_chains = 0;
+    int num_3_chains = 0;
+
+    for (int i = 1; i < 25; ++i) {
+        if (Chains_OF_Board_Box[i].Type == Short_Chain) {
+            if (Chains_OF_Board_Box[i]._BOX__NUM_OF_CHAIN == 1) num_1_chains++;
+            if (Chains_OF_Board_Box[i]._BOX__NUM_OF_CHAIN == 2) num_2_chains++;
+        } else if (Chains_OF_Board_Box[i].Type == Long_Chain && Chains_OF_Board_Box[i]._BOX__NUM_OF_CHAIN == 3) {
+            num_3_chains++;
+        }
+    }
+    
+    bool no_short_chains = (num_1_chains == 0 && num_2_chains == 0);
+    bool not_two_3_chains = (num_3_chains != 2);
+    
+    return no_short_chains && not_two_3_chains;
+}
+
+
+/**
+ * @brief 对当前局面进行估值（完整实现版）
+ * @details 严格遵循提供的伪代码逻辑，以覆盖方式计算value
+ * @return int 估值分数
+ */
+int Board_Box::evaluate_v2() {
+    Chains_Define(true); 
+
+    int cv = control_value();
+    int size_G = get_board_size();
+    int num_3_chains = count_3_chains();
+    int num_4_loops = count_4_loops();
+    int value = 0; // 默认值，将被后续规则覆盖
+
+    // --- 规则开始 ---
+
+    // 规则 1 & 2
+    if (cv >= 2) {
+        value = cv;
+    } else if (cv == 0 && check_chain_composition()) {
+        value = 0;
+    }
+
+    // 规则 3
+    if (num_3_chains == 0 || (num_3_chains == 1 && (size_G % 4) == 3)) {
+        if (cv + num_4_loops >= 2) {
+            value = 0;
+        } else {
+            int mod_cv = cv % 8;
+            if (mod_cv < 0) mod_cv += 8; // 标准化负数取模
+            
+            if (mod_cv == 0) value = 1;
+            else if (mod_cv == 1 || mod_cv == 7) value = 2; // +/- 1
+            else if (mod_cv == 2 || mod_cv == 6) value = 3; // +/- 2
+            else if (mod_cv == 3 || mod_cv == 5) value = 4; // +/- 3
+            else if (mod_cv == 4) value = 4;               // 4
+        }
+    }
+
+    // 规则 4
+    // f in "4f" is interpreted as the number of 4-loops
+    if (cv + 4 * num_4_loops < 2) {
+        if (size_G % 2 != 0) { // G is odd
+            // v = 1 resp. 3 if f is odd resp. even
+            value = (num_4_loops % 2 != 0) ? 1 : 3;
+        }
+    }
+
+    // 规则 5 (此规则作为最后的默认/覆盖规则)
+    if ((size_G % 4) == 2) {
+        value = 2;
+    } else if ((size_G % 4) == 0) {
+        // value = 0 resp. 4 if number of 4-loops is odd resp. even
+        value = (num_4_loops % 2 != 0) ? 0 : 4;
+    } else { // size(G) is 1 or 3 (mod 4), so it's odd
+        // value = 1, 2 as size(G) is odd, even. This simplifies to 1.
+        value = 1;
+    }
+
+    return value;
 }

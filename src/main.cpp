@@ -309,11 +309,11 @@ void show_Information(){
 // 显示玩家类型选择按钮
 void showSetPlayer(){
     sf::Text first_human_text(L"玩家",font,40);
-    sf::Text first_ai_old_text(L"旧机",font,40);
-    sf::Text first_ai_new_text(L"新机",font,40);
+    sf::Text first_ai_old_text(L"UCT",font,40);
+    sf::Text first_ai_new_text(L"IDα-β",font,40);
     sf::Text second_human_text(L"玩家",font,40);
-    sf::Text second_ai_old_text(L"旧机",font,40);
-    sf::Text second_ai_new_text(L"新机",font,40);
+    sf::Text second_ai_old_text(L"UCT",font,40);
+    sf::Text second_ai_new_text(L"IDα-β",font,40);
     first_human_text.setPosition(1110,260);
     first_ai_old_text.setPosition(1110,260);
     first_ai_new_text.setPosition(1110,260);

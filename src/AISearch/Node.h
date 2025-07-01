@@ -16,6 +16,7 @@
 class Node:public Board{
     public:
         int Owner,Times,Board_Winner,_Exist_Child,Total_Child;
+        int search_depth; // 为置换表增加搜索深度记录
         float _Avg_Value;
         POS Node_Moves[60];
         Node*_Child_NODES[60];
