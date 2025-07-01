@@ -70,13 +70,13 @@ int TAKE_Filter_Winner_OF_MC(Board&CB,int NextPlayer,int&Rating){
     return TAKE_Winner_OF_Board(CB,-player,-NextPlayer,Rating);
 }
 
-/**
- * 多线程蒙特卡洛模拟函数
- * 在指定线程中执行蒙特卡洛模拟
- * 输入：_MCB - 棋盘副本，_MCE - 原子计数器，NextPlayer - 下一个玩家，_Winner - 目标胜利者，UCT__TIMES__MC - 模拟次数，thread_id - 线程ID
- * 输出：无
- * 算法：根据线程ID分配模拟任务，执行指定次数的蒙特卡洛模拟并累加结果
- */
+/*
+// * 多线程蒙特卡洛模拟函数
+// * 在指定线程中执行蒙特卡洛模拟
+// * 输入：_MCB - 棋盘副本，_MCE - 原子计数器，NextPlayer - 下一个玩家，_Winner - 目标胜利者，UCT__TIMES__MC - 模拟次数，thread_id - 线程ID
+// * 输出：无
+// * 算法：根据线程ID分配模拟任务，执行指定次数的蒙特卡洛模拟并累加结果
+ 
 void multi_thread_func(Board _MCB,std::atomic<int>&_MCE,int NextPlayer,int _Winner,int UCT__TIMES__MC,int thread_id){
     int local__MCE=0;
     for(int i=thread_id;i<UCT__TIMES__MC;i+=THREAD_COUNT){
@@ -88,13 +88,13 @@ void multi_thread_func(Board _MCB,std::atomic<int>&_MCE,int NextPlayer,int _Winn
     _MCE+=local__MCE;
 }
 
-/**
- * 蒙特卡洛评估函数
- * 使用多线程进行蒙特卡洛模拟评估
- * 输入：CB - 棋盘对象，NextPlayer - 下一个玩家，_Winner - 目标胜利者
- * 输出：评估分数
- * 算法：创建多个线程并行执行蒙特卡洛模拟，最后计算平均分数
- */
+
+// * 蒙特卡洛评估函数
+// * 使用多线程进行蒙特卡洛模拟评估
+// * 输入：CB - 棋盘对象，NextPlayer - 下一个玩家，_Winner - 目标胜利者
+// * 输出：评估分数
+// * 算法：创建多个线程并行执行蒙特卡洛模拟，最后计算平均分数
+ 
 float Evalution_TAKE_Filter_OF_MC(Board&CB,int NextPlayer,int _Winner){
     //Board _MCB=CB;
     std::atomic<int>_MCE(0);
@@ -106,7 +106,23 @@ float Evalution_TAKE_Filter_OF_MC(Board&CB,int NextPlayer,int _Winner){
     for(auto&th:threads)th.join();
     return static_cast<float>((float)_MCE.load())/(float)static_cast<float>(UCT__TIMES__MC);
 }
-
+*/
+/**
+ * 蒙特卡洛评估函数（单线程版）
+ * 输入：CB - 棋盘对象，NextPlayer - 下一个玩家，_Winner - 目标胜利者
+ * 输出：评估分数
+ * 算法：顺序执行指定次数的蒙特卡洛模拟，最后计算平均分数
+ */
+float Evalution_TAKE_Filter_OF_MC(Board&CB, int NextPlayer, int _Winner) {
+    int MCE = 0;
+    for (int i = 0; i < UCT__TIMES__MC; ++i) {
+        int CNT = 0, WIN = 0;
+        Board COPY_LOCAL_MCB = CB;
+        if (TAKE_Filter_Winner_OF_MC(COPY_LOCAL_MCB, NextPlayer, CNT) == _Winner) WIN++;
+        MCE += WIN + CNT - 13;
+    }
+    return static_cast<float>(MCE) / static_cast<float>(UCT__TIMES__MC);
+}
 /**
  * UCT树搜索处理函数
  * 执行UCT算法的核心搜索逻辑
