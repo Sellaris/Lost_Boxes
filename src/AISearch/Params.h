@@ -13,6 +13,13 @@ constexpr int WAY[4][2]={{1,0},{0,1},{-1,0},{0,-1}};
 //   Not_Define-未定义, Long_Chain-长链, Short_Chain-短链, Circle-环, Pre_Circle-预备环, Dead_Chain-死链, Dead_Circle-死环
 enum ChainType{Not_Define,Long_Chain,Short_Chain,Circle,Pre_Circle,Dead_Chain,Dead_Circle};
 
+// TT Entry Bound Types
+enum Bound {
+    EXACT,
+    LOWER_BOUND,
+    UPPER_BOUND
+};
+
 // C: UCB常数
 constexpr double C=1;
 // FULL_BOX_/DEAD_BOX_/CHAIN_BOX_/FREE_BOX_: 格子类型

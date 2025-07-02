@@ -83,4 +83,5 @@ bool Odd_TRUE(int num);
 bool Even_TRUE(int num);
 // COPY_BOARD: 棋盘复制
 void COPY_BOARD(int SOUR[LEN][LEN], int TAR[LEN][LEN]);
+
 #endif

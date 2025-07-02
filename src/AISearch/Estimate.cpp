@@ -1029,55 +1029,6 @@ int Board_Box::control_value() {
 }
 
 /**
- * @brief 对当前局面进行估值（简化版）
- * @return int 估值分数
- */
-int Board_Box::evaluate() {
-    Chains_Define(true);
-    int cv = control_value();
-    int num_3_chains = count_3_chains();
-    int num_4_loops = count_4_loops();
-    int size_G = get_board_size();
-    int value = 0; 
-
-    if (cv >= 2) {
-        value = cv;
-    } else if (cv == 0) {
-        value = 0;
-    }
-
-    if (num_3_chains == 0 || (num_3_chains == 1 && (size_G % 4 == 3))) {
-        if (cv + num_4_loops >= 2) {
-            value = 0;
-        } else {
-            int mod_cv = cv % 8;
-            if (mod_cv == 0) value = 1;
-            else if (mod_cv == 1 || mod_cv == -1 || mod_cv == 7) value = 2;
-            else if (mod_cv == 2 || mod_cv == -2 || mod_cv == 6) value = 3;
-            else if (mod_cv == 3 || mod_cv == -3 || mod_cv == 5) value = 4;
-            else value = 4;
-        }
-    }
-
-    if (cv + 4 * num_4_loops < 2) {
-        if (size_G % 2 != 0) {
-            value = (num_4_loops % 2 != 0) ? 1 : 3;
-        }
-    }
-
-    if (size_G % 4 == 2) {
-        value = 2;
-    } else if (size_G % 4 == 0) {
-        value = (num_4_loops % 2 != 0) ? 0 : 4;
-    } else { 
-        value = 1;
-    }
-
-    return value;
-}
-
-
-/**
  * @brief 检查链的构成是否符合 "4l + (anything except 3+3)"
  * @details "4l" 被解释为没有长度为1或2的链。"anything except 3+3" 被解释为3链的数量不等于2。
  * @return bool 符合条件返回true
@@ -1102,6 +1053,14 @@ bool Board_Box::check_chain_composition() {
     return no_short_chains && not_two_3_chains;
 }
 
+/**
+ * @brief 判断一个数是否为奇数
+ * @param n 要检查的数
+ * @return bool 是奇数返回true，否则false
+ */
+bool is_odd(int n) {
+    return n % 2 != 0;
+}
 
 /**
  * @brief 对当前局面进行估值（完整实现版）
@@ -1109,58 +1068,55 @@ bool Board_Box::check_chain_composition() {
  * @return int 估值分数
  */
 int Board_Box::evaluate_v2() {
-    Chains_Define(true); 
+    Chains_Define(true);
 
     int cv = control_value();
-    int size_G = get_board_size();
     int num_3_chains = count_3_chains();
+    int size_G = get_board_size();
     int num_4_loops = count_4_loops();
-    int value = 0; // 默认值，将被后续规则覆盖
 
-    // --- 规则开始 ---
-
-    // 规则 1 & 2
+    // 伪代码块 1
     if (cv >= 2) {
-        value = cv;
+        return cv;
     } else if (cv == 0 && check_chain_composition()) {
-        value = 0;
+        return 0;
     }
 
-    // 规则 3
-    if (num_3_chains == 0 || (num_3_chains == 1 && (size_G % 4) == 3)) {
+    // 伪代码块 2
+    if (num_3_chains == 0 || (num_3_chains == 1 && size_G % 4 == 3)) {
         if (cv + num_4_loops >= 2) {
-            value = 0;
+            return 0;
         } else {
-            int mod_cv = cv % 8;
-            if (mod_cv < 0) mod_cv += 8; // 标准化负数取模
-            
-            if (mod_cv == 0) value = 1;
-            else if (mod_cv == 1 || mod_cv == 7) value = 2; // +/- 1
-            else if (mod_cv == 2 || mod_cv == 6) value = 3; // +/- 2
-            else if (mod_cv == 3 || mod_cv == 5) value = 4; // +/- 3
-            else if (mod_cv == 4) value = 4;               // 4
+            int cv_mod_8 = cv % 8;
+            if (cv_mod_8 < 0) cv_mod_8 += 8;
+
+            switch (cv_mod_8) {
+                case 0: return 1;
+                case 1: case 7: return 2;
+                case 2: case 6: return 3;
+                case 3: case 5: return 4;
+                case 4: return 4;
+                default: break; 
+            }
         }
     }
 
-    // 规则 4
-    // f in "4f" is interpreted as the number of 4-loops
-    if (cv + 4 * num_4_loops < 2) {
-        if (size_G % 2 != 0) { // G is odd
-            // v = 1 resp. 3 if f is odd resp. even
-            value = (num_4_loops % 2 != 0) ? 1 : 3;
+    // 伪代码块 3
+    int f = num_4_loops;
+    if (cv + 4 * f < 2) {
+        if (is_odd(size_G)) {
+            return is_odd(f) ? 1 : 3;
         }
     }
 
-    // 规则 5 (此规则作为最后的默认/覆盖规则)
-    if ((size_G % 4) == 2) {
-        value = 2;
-    } else if ((size_G % 4) == 0) {
-        // value = 0 resp. 4 if number of 4-loops is odd resp. even
-        value = (num_4_loops % 2 != 0) ? 0 : 4;
-    } else { // size(G) is 1 or 3 (mod 4), so it's odd
-        // value = 1, 2 as size(G) is odd, even. This simplifies to 1.
-        value = 1;
+    // 伪代码块 4
+    if (size_G % 4 == 2) {
+        return 2;
+    } else if (size_G % 4 == 0) {
+        return is_odd(num_4_loops) ? 0 : 4;
+    } else { // size_G % 4 is 1 or 3
+        return is_odd(size_G) ? 1 : 2;
     }
-
-    return value;
+    
+    return 0; // Default return if no other condition is met
 }

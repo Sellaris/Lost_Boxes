@@ -17,6 +17,9 @@ class Node:public Board{
     public:
         int Owner,Times,Board_Winner,_Exist_Child,Total_Child;
         int search_depth; // 为置换表增加搜索深度记录
+        int score;        // TT中存储的分数
+        Bound bound_type; // TT中存储分数的类型(EXACT, LOWER, UPPER)
+        POS best_move;    // TT中存储的最佳走法
         float _Avg_Value;
         POS Node_Moves[60];
         Node*_Child_NODES[60];

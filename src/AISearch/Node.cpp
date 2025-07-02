@@ -11,7 +11,10 @@
  * 算法：直接初始化所有成员变量为0或默认值
  */
 Node::Node(){
-    Owner=Times=Board_Winner=_Exist_Child=Total_Child=0;
+    Owner=Times=Board_Winner=_Exist_Child=Total_Child=score=0;
+    search_depth=-1;
+    bound_type = EXACT;
+    best_move = {-1, -1};
     _Avg_Value=0;
 }
 
@@ -51,6 +54,10 @@ Node::Node(int Player,int Array[LEN][LEN],bool GetCBox):Board(Array){
     }
     Owner=Player;
     Times=0;
+    search_depth = -1;
+    score = 0;
+    bound_type = EXACT;
+    best_move = {-1, -1};
     Board Win(_MAP_);
     Board_Winner=TAKE_Winner_OF_Board(Win,-Player);
     _Exist_Child=0;
