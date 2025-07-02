@@ -159,3 +159,12 @@ void print_tt_stats_TT() {
     std::cerr << "[UCT_TT 置换表] 查询:" << probes << " 命中:" << hits
               << " 插入:" << inserts << " 命中率:" << hit_rate << "%\n";
 } 
+
+// ---------------- 析构函数 ----------------
+Node_TT::~Node_TT() {
+    // 递归释放已创建的子节点，防止内存泄漏
+    for (int i = 0; i < _Exist_Child; ++i) {
+        delete _Child_NODES[i];
+        _Child_NODES[i] = nullptr;
+    }
+}

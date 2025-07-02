@@ -23,6 +23,7 @@ public:
     Node_TT();                                 // 默认构造
     Node_TT(const Node_TT& other);             // 拷贝构造
     Node_TT(int Player, int ARRAY[LEN][LEN], bool GetCBox); // 参数构造
+    ~Node_TT();                 // 新增：递归释放子节点
 
     float refresh_Avg_Value();                 // 更新平均收益
     float TAKE_UCB_Value(int Total);           // 计算 UCB 值

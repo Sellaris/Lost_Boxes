@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 #include <ctime>
+#include <mutex>
 
 // 为多线程版本准备独立 RNG
 thread_local std::mt19937_64 rng_tt(std::chrono::system_clock::now().time_since_epoch().count());
@@ -74,6 +75,11 @@ void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves)
 
         std::vector<std::thread> threads;
         threads.reserve(THREAD_COUNT);
+        // 汇总数组，线程安全更新
+        std::vector<long long> total_visits_per_move(UCT_B.Total_Child, 0);
+        std::vector<double> combined_value_sum(UCT_B.Total_Child, 0.0);
+        std::mutex agg_mutex;
+
         auto start_time = std::chrono::steady_clock::now();
         auto uct_worker = [&](Node_TT &tree_root) {
             int total_sims_thread = 0;
@@ -85,6 +91,15 @@ void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves)
                 }
                 Process_UCT_TT(tree_root, total_sims_thread);
             }
+            // 线程结束前将统计数据写入全局数组
+            {
+                std::lock_guard<std::mutex> lk(agg_mutex);
+                for (int i = 0; i < tree_root._Exist_Child; ++i) {
+                    total_visits_per_move[i] += tree_root._Child_NODES[i]->Times;
+                    combined_value_sum[i]   += tree_root._Child_NODES[i]->_Avg_Value * tree_root._Child_NODES[i]->Times;
+                }
+            }
+
         };
 
         for (int i = 0; i < THREAD_COUNT; ++i) {
@@ -94,15 +109,7 @@ void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves)
             th.join();
         }
 
-        // 汇总各线程统计
-        std::vector<long long> total_visits_per_move(UCT_B.Total_Child, 0);
-        std::vector<double> combined_value_sum(UCT_B.Total_Child, 0.0);
-        for (const auto &tree : thread_trees) {
-            for (int i = 0; i < tree._Exist_Child; ++i) {
-                total_visits_per_move[i] += tree._Child_NODES[i]->Times;
-                combined_value_sum[i] += tree._Child_NODES[i]->_Avg_Value * tree._Child_NODES[i]->Times;
-            }
-        }
+
 
         int best_node_idx = 0;
         float best_avg_value = -1.0f;
@@ -116,6 +123,8 @@ void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves)
                 best_node_idx = i;
             }
         }
+
+
 
         CB.move(Player, {UCT_B.Node_Moves[best_node_idx].first, UCT_B.Node_Moves[best_node_idx].second}, total_moves + pace.size() + 1);
         pace.emplace_back(UCT_B.Node_Moves[best_node_idx].first, UCT_B.Node_Moves[best_node_idx].second);

@@ -58,23 +58,23 @@ constexpr int _BOX_LEN=5;
 constexpr int _BOX_NUM=25;
 
 // UCT_参数    
-constexpr size_t TT_MAX_SIZE_ = 400000;// 置换表最大大小 4e5局面
+constexpr size_t TT_MAX_SIZE_ = 10000000;// 置换表最大大小 1e7局面
 const int UCT__TIMES__MC=1;
 constexpr int UCT__ALL_TIMES=2000000000;
 constexpr int UCT__LIMIT_TIME1=10;
-constexpr int UCT__LIMIT_TIME2=10;
-constexpr int UCT__LIMIT_TIME3=10;
-constexpr int UCT__LIMIT_TIME4=10;
-constexpr int UCT__RANGE_FILTER=20;
+constexpr int UCT__LIMIT_TIME2=50;
+constexpr int UCT__LIMIT_TIME3=60;
+constexpr int UCT__LIMIT_TIME4=30;
+constexpr int UCT__RANGE_FILTER=25;
 
 // 多线程参数
-const int THREAD_COUNT=12; // 新增线程数常量
+const int THREAD_COUNT=10; // 新增线程数常量
 
 // Alpha-Beta 迭代加深参数
 constexpr int AB_LIMIT_TIME1 = 10;    // 0-9步时限
-constexpr int AB_LIMIT_TIME2 = 10;    // 10-19步时限
-constexpr int AB_LIMIT_TIME3 = 10;    // 20-29步时限
-constexpr int AB_LIMIT_TIME4 = 10;    // 30步以后时限
+constexpr int AB_LIMIT_TIME2 = 50;    // 10-19步时限
+constexpr int AB_LIMIT_TIME3 = 60;    // 20-29步时限
+constexpr int AB_LIMIT_TIME4 = 30;    // 30步以后时限
 constexpr int AB_MAX_DEPTH = 20;     // 迭代加深最大深度
 
 #endif
