@@ -58,9 +58,9 @@ float Process_UCT_TT(Node_TT &B, int &Total) {
 void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves) {
     Node_TT UCT_B(Player, CB._MAP_, true);
 
-    int UCT__LIMIT_TIME = total_moves < 10 ? UCT__LIMIT_TIME1 :
-                           (total_moves < 20 ? UCT__LIMIT_TIME2 :
-                           (total_moves < 30 ? UCT__LIMIT_TIME3 : UCT__LIMIT_TIME4));
+    int UCT__LIMIT_TIME = total_moves <= 10 ? UCT__LIMIT_TIME1 :
+                           (total_moves <= 20 ? (total_moves-10)*UCT__LIMIT_TIME2/2 :
+                           (total_moves <= 30 ? UCT__LIMIT_TIME3 : UCT__LIMIT_TIME4));
 
     if (UCT_B.Board_Winner == 0) {
         if (UCT_B.Total_Child == 0) {
