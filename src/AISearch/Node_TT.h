@@ -7,6 +7,7 @@
 #define DAB_NODE_TT_H
 #include "board.h"
 #include "Params.h"
+#include <cstddef>
 #include <utility>
 
 class Node_TT : public Board {
@@ -28,6 +29,11 @@ public:
     float refresh_Avg_Value();                 // 更新平均收益
     float TAKE_UCB_Value(int Total);           // 计算 UCB 值
     Node_TT* expand_UCT_Node();                // 扩展子节点（集成置换表）
+
+    // 自定义内存管理：线程本地 Arena
+    static void* operator new(std::size_t size);
+    static void operator delete(void* ptr, std::size_t size);
+    static void operator delete(void* ptr) noexcept;
 };
 
 // 打印置换表统计信息（在 Node_TT.cpp 实现）

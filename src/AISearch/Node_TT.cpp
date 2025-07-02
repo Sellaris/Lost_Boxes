@@ -12,6 +12,7 @@
 #include <atomic>
 #include <iostream>
 #include <deque>
+#include "NodeArena.h"
 // ---------------- 置换表相关全局结构 ----------------
 namespace {
     // 只缓存评估结果而不共享节点实例，避免多线程竞争
@@ -162,9 +163,21 @@ void print_tt_stats_TT() {
 
 // ---------------- 析构函数 ----------------
 Node_TT::~Node_TT() {
-    // 递归释放已创建的子节点，防止内存泄漏
-    for (int i = 0; i < _Exist_Child; ++i) {
-        delete _Child_NODES[i];
-        _Child_NODES[i] = nullptr;
-    }
+    // 由线程本地 Arena 统一回收，无需逐个 delete
 }
+
+// ---------------- 自定义内存管理 ----------------
+void* Node_TT::operator new(std::size_t size) {
+    return get_node_arena().alloc(size);
+}
+
+void Node_TT::operator delete(void* /*ptr*/, std::size_t /*size*/) {
+    // 内存由 Arena 统一回收，此处无需处理
+}
+
+void Node_TT::operator delete(void* /*ptr*/) noexcept {
+    // 与上同
+}
+
+// 构建期检查，确保节点大小不超过固定块
+static_assert(sizeof(Node_TT) <= Arena::BLOCK_SIZE, "Node_TT size exceeds Arena block size (2 KiB)");

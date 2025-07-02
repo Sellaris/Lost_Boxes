@@ -11,6 +11,7 @@
 #include <vector>
 #include <ctime>
 #include <mutex>
+#include "NodeArena.h"
 
 // 为多线程版本准备独立 RNG
 thread_local std::mt19937_64 rng_tt(std::chrono::system_clock::now().time_since_epoch().count());
@@ -100,6 +101,9 @@ void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves)
                 }
             }
 
+            // 一次性释放当前线程所有 Node_TT 内存
+            get_node_arena().reset();
+
         };
 
         for (int i = 0; i < THREAD_COUNT; ++i) {
@@ -108,8 +112,6 @@ void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves)
         for (auto &th : threads) {
             th.join();
         }
-
-
 
         int best_node_idx = 0;
         float best_avg_value = -1.0f;
@@ -124,17 +126,15 @@ void Move_UCT_TT(Board &CB, int Player, std::vector<POS> &pace, int total_moves)
             }
         }
 
-
-
         CB.move(Player, {UCT_B.Node_Moves[best_node_idx].first, UCT_B.Node_Moves[best_node_idx].second}, total_moves + pace.size() + 1);
         pace.emplace_back(UCT_B.Node_Moves[best_node_idx].first, UCT_B.Node_Moves[best_node_idx].second);
         print_tt_stats_TT();
-
-        // 无需显式销毁，thread_trees 离开作用域自动析构
+        get_node_arena().reset();
     } else {
         CB._TAKE_All_C_TYPE_Boxes(Player, pace, total_moves);
         Situation_Move_latter_UCT_TT(CB, Player, pace, total_moves);
         print_tt_stats_TT();
+        get_node_arena().reset();
     }
 }
 
