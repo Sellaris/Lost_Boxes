@@ -1,5 +1,6 @@
 #include "Node_TT.h"
 #include "Estimate.h"
+#include "Params.h"
 #include "UCT.h"
 #include <cstring>
 #include <cmath>
@@ -16,7 +17,7 @@ namespace {
     // 只缓存评估结果而不共享节点实例，避免多线程竞争
     static std::unordered_map<std::string, float> g_eval_table_tt;
     static std::deque<std::string> g_key_order_tt;
-    constexpr size_t TT_MAX_SIZE = 300000; // 约 30 万局面，控制内存
+    constexpr size_t TT_MAX_SIZE = TT_MAX_SIZE_; // 约 40 万局面，控制内存
     static std::mutex g_tt_mutex_tt;
 
     // 统计信息

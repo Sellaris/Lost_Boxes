@@ -26,7 +26,7 @@ Game_Date::Game_Date(int a,int b,const char*p1,const char*p2){
     SJ_Addnumber(root,"RScore",a);
     SJ_Addnumber(root,"BScore",b);
     time_t now=time(nullptr);tm*date=localtime(&now);
-    SJ_Addstring(root,"Date","2022-08-06");//此处修改时间
+    SJ_Addstring(root,"Date","2025-08-06");//此处修改时间
     SJ_Addstring(root,"Event","2025 CCGC");
 }
 

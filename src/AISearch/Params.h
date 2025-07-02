@@ -57,7 +57,8 @@ constexpr int LEN=11;
 constexpr int _BOX_LEN=5;
 constexpr int _BOX_NUM=25;
 
-// UCT_参数
+// UCT_参数    
+constexpr size_t TT_MAX_SIZE_ = 400000;// 置换表最大大小 4e5局面
 const int UCT__TIMES__MC=1;
 constexpr int UCT__ALL_TIMES=2000000000;
 constexpr int UCT__LIMIT_TIME1=10;
