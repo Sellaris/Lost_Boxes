@@ -114,6 +114,19 @@ public:
     // 输入: Player_L-后手方, Father_O-父节点归属, Rating-得分引用
     // 输出: 返回胜利者编号, Rating赋值
     int TAKE_Winner_OF_Board(int Player_L, int Father_O, int &Rating);
+    //====================局面估值辅助函数====================
+    int count_long_chains();
+    int count_loops();
+    int count_3_chains();
+    int count_4_loops();
+    int get_board_size();
+    int calculate_tb();
+    int count_all_chains();
+    int control_value();
+    int evaluate();
+    int evaluate_v2(); // The new, fully implemented evaluation function
+    bool check_chain_composition(); // Helper for the "4l + (anything except 3+3)" condition
+
     //====================等价裁边====================
     // TAKE_Filter_Moves: 得到所有过滤可行边(不产生死链)
     // 输入: _Moves-可行边数组

@@ -11,7 +11,10 @@
  * 算法：直接初始化所有成员变量为0或默认值
  */
 Node::Node(){
-    Owner=Times=Board_Winner=_Exist_Child=Total_Child=0;
+    Owner=Times=Board_Winner=_Exist_Child=Total_Child=score=0;
+    search_depth=-1;
+    bound_type = EXACT;
+    best_move = {-1, -1};
     _Avg_Value=0;
 }
 
@@ -50,7 +53,11 @@ Node::Node(int Player,int Array[LEN][LEN],bool GetCBox):Board(Array){
         _TAKE_All_C_Boxes(Player, move_count, false);
     }
     Owner=Player;
-    Times=1;
+    Times=0;
+    search_depth = -1;
+    score = 0;
+    bound_type = EXACT;
+    best_move = {-1, -1};
     Board Win(_MAP_);
     Board_Winner=TAKE_Winner_OF_Board(Win,-Player);
     _Exist_Child=0;
@@ -102,6 +109,6 @@ Node*Node::expand_UCT_Node(){
     CB.move(Owner,{Node_Moves[_Exist_Child].first,Node_Moves[_Exist_Child].second}, 0);
     Node*NEW_BOARD=new Node(-Owner,CB._MAP_,true);
     CB.setBoard(NEW_BOARD->_MAP_);
-    NEW_BOARD->_Avg_Value=(Evalution_TAKE_Filter_OF_MC(CB,-Owner,Owner)+13)/26;
+    NEW_BOARD->_Avg_Value=(Evalution_TAKE_Filter_OF_MC(CB,-Owner,Owner)+13)/26.0f;
     return NEW_BOARD;
 } 
