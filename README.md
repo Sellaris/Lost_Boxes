@@ -1,5 +1,4 @@
-# 葬送的点格
-# Lost_Boxes
+# 葬送的点格/Lost_Boxes
 
 ## 使用方法
 0.确保MinGW使用MSVCRT，gcc版本为11.2。请使用[MinGW-w64](https://ysod.azurewebsites.net/%E5%BC%80%E5%8F%91/MinGW/winlibs-x86_64-posix-seh-gcc-11.2.0-mingw-w64msvcrt-10.0.0-r1.zip)
@@ -13,9 +12,9 @@
 4.配置cmake以及编译文件
 
 ### 使用CMake 
-首先安装[CMake](https://github.com/Kitware/CMake/releases/download/v3.24.0-rc4/cmake-3.24.0-rc4-windows-x86_64.msi)
+安装[CMake](https://github.com/Kitware/CMake/releases/download/v3.24.0-rc4/cmake-3.24.0-rc4-windows-x86_64.msi)
 #### VS Code
-1. git clone https://gitee.com/YunShu007/dots-and-boxes.git
+1. git clone https://github.com/Sellaris/Lost_Boxes.git
 2. 安装[CMake Tools](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cmake-tools)插件
 3. 重启VS Code
 4. 重新打开会让你选择工具,选择`GCC 11.2.0 X86_64-w64-mingw32-make`
