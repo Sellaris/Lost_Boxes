@@ -82,7 +82,7 @@ launch.json:
 ```
 
 #### Clion
-1. 打开Clion，选择从VCS导入，输入https://gitee.com/YunShu007/dots-and-boxes.git
+1. 打开Clion，选择从VCS导入，输入https://github.com/Sellaris/Lost_Boxes.git
 2. 等待加载，完成后会弹出配置cmake的窗口，直接点确定即可。
 
 > Clion自带Cmake和符合要求的MinGW,所以可以开箱即用
