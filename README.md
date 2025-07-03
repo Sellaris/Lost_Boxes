@@ -3,6 +3,13 @@
 
 ## 使用方法
 确保MinGW使用MSVCRT，gcc版本为11.2。请使用[MinGW-w64](https://ysod.azurewebsites.net/%E5%BC%80%E5%8F%91/MinGW/winlibs-x86_64-posix-seh-gcc-11.2.0-mingw-w64msvcrt-10.0.0-r1.zip)
+1.新建build文件夹在项目根目录下
+
+2.将3rdparty\SFML\bin中所有dll文件copy至build文件夹
+
+3.将res文件夹copy至build文件夹
+
+4.配置cmake以及编译文件
 
 ### 使用CMake 
 首先安装[CMake](https://github.com/Kitware/CMake/releases/download/v3.24.0-rc4/cmake-3.24.0-rc4-windows-x86_64.msi)
