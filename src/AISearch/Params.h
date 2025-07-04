@@ -62,11 +62,11 @@ constexpr size_t TT_MAX_SIZE_ = 10000000;// 置换表最大大小 1e7局面
 const int UCT__TIMES__MC=1;
 constexpr int UCT__ALL_TIMES=2000000000;
 constexpr int UCT__LIMIT_TIME1=10;
-constexpr int UCT__LIMIT_TIME2=10; //(move - 10 ) *10 /2
+constexpr int UCT__LIMIT_TIME2=30; 
 constexpr int UCT__LIMIT_TIME3=50;
-constexpr int UCT__LIMIT_TIME4=10;
+constexpr int UCT__LIMIT_TIME4=30;
 constexpr int UCT__RANGE_FILTER=25;
-
+//60 + 10 + 20 + 30 + 40 +50 + 300 + 15*10 = 610
 // 多线程参数
 const int THREAD_COUNT=10; // 新增线程数常量
 

@@ -2,7 +2,7 @@
 #include "UCT.h"
 #include "Estimate.h"
 #include <cmath>
-
+#include "NodeArena.h"
 /**
  * 默认构造函数
  * 初始化棋盘状态，设置所有成员变量为默认值
@@ -112,3 +112,24 @@ Node*Node::expand_UCT_Node(){
     NEW_BOARD->_Avg_Value=(Evalution_TAKE_Filter_OF_MC(CB,-Owner,Owner)+13)/26.0f;
     return NEW_BOARD;
 } 
+
+// ---------------- 析构函数 ----------------
+Node::~Node() {
+    // 由线程本地 Arena 统一回收，无需逐个 delete
+}
+
+// ---------------- 自定义内存管理 ----------------
+void* Node::operator new(std::size_t size) {
+    return get_node_arena().alloc(size);
+}
+
+void Node::operator delete(void* /*ptr*/, std::size_t /*size*/) {
+    // 内存由 Arena 统一回收，此处无需处理
+}
+
+void Node::operator delete(void* /*ptr*/) noexcept {
+    // 与上同
+}
+
+// 构建期检查，确保节点大小不超过固定块
+static_assert(sizeof(Node) <= Arena::BLOCK_SIZE, "Node size exceeds Arena block size (2 KiB)");

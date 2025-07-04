@@ -10,6 +10,7 @@
 #include <thread>
 #include <chrono>
 #include <vector>
+#include "NodeArena.h"
 thread_local std::mt19937_64 rng(std::chrono::system_clock::now().time_since_epoch().count()*_threadid);
 
 
@@ -171,7 +172,7 @@ float Process_UCT(Node&B,int&Total){
 void Move_UCT(Board&CB,int Player,vector<POS>&pace, int total_moves){
     Node UCT_B(Player,CB._MAP_,true);
     int UCT__LIMIT_TIME = total_moves <= 10 ? UCT__LIMIT_TIME1 :
-                           (total_moves <= 20 ? (total_moves-10)*UCT__LIMIT_TIME2/2 :
+                           (total_moves <= 20 ? UCT__LIMIT_TIME2 :
                            (total_moves <= 30 ? UCT__LIMIT_TIME3 : UCT__LIMIT_TIME4));
 
     if(UCT_B.Board_Winner==0){
@@ -180,6 +181,9 @@ void Move_UCT(Board&CB,int Player,vector<POS>&pace, int total_moves){
         }
         std::vector<Node> thread_trees;
         thread_trees.reserve(THREAD_COUNT);
+        std::vector<long long> total_visits_per_move(UCT_B.Total_Child, 0);
+        std::vector<double> combined_value_sum(UCT_B.Total_Child, 0.0);
+        std::mutex agg_mutex;
         for(int i = 0; i < THREAD_COUNT; ++i) {
             thread_trees.emplace_back(UCT_B);
         }
@@ -188,28 +192,28 @@ void Move_UCT(Board&CB,int Player,vector<POS>&pace, int total_moves){
         auto start_time = std::chrono::steady_clock::now();
         auto uct_worker = [&](Node& tree_root) {
             int total_sims_thread = 0;
-            while(true) {
+            while (true) {
                 auto current_time = std::chrono::steady_clock::now();
                 std::chrono::duration<double> elapsed_seconds = current_time - start_time;
-                if(elapsed_seconds.count() >= UCT__LIMIT_TIME) {
+                if (elapsed_seconds.count() >= UCT__LIMIT_TIME) {
                     break;
                 }
                 Process_UCT(tree_root, total_sims_thread);
             }
+            {
+                std::lock_guard<std::mutex> lk(agg_mutex);
+                for (int i = 0; i < tree_root._Exist_Child; ++i) {
+                    total_visits_per_move[i] += tree_root._Child_NODES[i]->Times;
+                    combined_value_sum[i] += tree_root._Child_NODES[i]->_Avg_Value * tree_root._Child_NODES[i]->Times;
+                }
+            }
+            get_node_arena().reset();
         };
         for(int i = 0; i < THREAD_COUNT; ++i){
             threads.emplace_back(uct_worker, std::ref(thread_trees[i]));
         }
         for(auto& th : threads) {
             th.join();
-        }
-        std::vector<long long> total_visits_per_move(UCT_B.Total_Child, 0);
-        std::vector<double> combined_value_sum(UCT_B.Total_Child, 0.0);
-        for (const auto& tree : thread_trees) {
-            for (int i = 0; i < tree._Exist_Child; ++i) {
-                total_visits_per_move[i] += tree._Child_NODES[i]->Times;
-                combined_value_sum[i] += tree._Child_NODES[i]->_Avg_Value * tree._Child_NODES[i]->Times;
-            }
         }
         int best_node_idx = 0;
         float best_avg_value = -1.0f;
@@ -225,42 +229,16 @@ void Move_UCT(Board&CB,int Player,vector<POS>&pace, int total_moves){
         }
         CB.move(Player,{UCT_B.Node_Moves[best_node_idx].first,UCT_B.Node_Moves[best_node_idx].second}, total_moves + pace.size() + 1);
         pace.emplace_back(UCT_B.Node_Moves[best_node_idx].first,UCT_B.Node_Moves[best_node_idx].second);
-        for (auto& tree : thread_trees) {
-            UCT_Tree_DEL(tree);
-        }
+        get_node_arena().reset();
     }else{
         CB._TAKE_All_C_TYPE_Boxes(Player,pace, total_moves);
         Situation_Move_latter(CB,Player,pace, total_moves);
+        get_node_arena().reset();
     }
 }
 
-/**
- * 递归删除UCT节点
- * 递归释放UCT树中指定节点及其所有子节点的内存
- * 输入：Root - 要删除的节点指针
- * 输出：无
- * 算法：递归删除所有子节点，然后删除当前节点
- */
-void UCT_Node_DEL(Node*Root){
-    for(int i=0;i<Root->_Exist_Child;i++){
-        UCT_Node_DEL(Root->_Child_NODES[i]);
-        delete Root->_Child_NODES[i];
-    }
-}
 
-/**
- * 删除UCT树
- * 释放UCT树中所有节点的内存
- * 输入：Root - 根节点引用
- * 输出：无
- * 算法：遍历所有子节点并递归删除
- */
-void UCT_Tree_DEL(Node&Root){
-    for(int i=0;i<Root._Exist_Child;i++){
-        UCT_Node_DEL(Root._Child_NODES[i]);
-        delete Root._Child_NODES[i];
-    }
-}
+
 
 /**
  * 牺牲移动UCT决策函数
