@@ -1,4 +1,5 @@
-# Heap Overflow DotsAndBoxes
+# 葬送的点格
+# Lost_Boxes
 
 ## 使用方法
 确保MinGW使用MSVCRT，gcc版本为11.2。请使用[MinGW-w64](https://ysod.azurewebsites.net/%E5%BC%80%E5%8F%91/MinGW/winlibs-x86_64-posix-seh-gcc-11.2.0-mingw-w64msvcrt-10.0.0-r1.zip)
