@@ -22,29 +22,45 @@ class Node_Plus:public Board{
         POS best_move;    // TT中存储的最佳走法
         float _Avg_Value;
         POS Node_Plus_Moves[60];
-        Node_Plus*_Child_NODES[60];
-    // Node_Plus(): 默认构造
-    Node_Plus();                                 // 默认构造
-    Node_Plus(const Node_Plus& other);             // 拷贝构造
-    Node_Plus(int Player, int ARRAY[LEN][LEN], bool GetCBox); // 参数构造
-    ~Node_Plus();                 // 新增：递归释放子节点
-    // Node_Plus(Node_Plus&other): 拷贝构造
-    //Node_Plus(const Node_Plus&other);
-    // Node_Plus(int Player,int ARRAY[LEN][LEN],bool GetCBox): 参数构造
-    //Node_Plus(int Player,int ARRAY[LEN][LEN],bool GetCBox);
-    // refresh_Avg_Value: 更新平均收益
-    // 输出: 返回新平均值
-    float refresh_Avg_Value();
-    // TAKE_UCB_Value: 获取UCB值
-    // 输入: Total-总次数
-    // 输出: 返回UCB值
-    float TAKE_UCB_Value(int Total);
-    // expand_UCT_Node_Plus: 扩展节点
-    // 输出: 返回新子节点指针
-    Node_Plus*expand_UCT_Node_Plus();
-        // 自定义内存管理：线程本地 Arena
-    static void* operator new(std::size_t size);
-    static void operator delete(void* ptr, std::size_t size);
-    static void operator delete(void* ptr) noexcept;
+        Node_Plus*_Child_NODES[60];  
+        
+          
+        void PruneEdges();
+        // Node_Plus(): 默认构造
+        Node_Plus();                                 // 默认构造
+        Node_Plus(const Node_Plus& other);             // 拷贝构造
+        Node_Plus(int Player, int ARRAY[LEN][LEN], bool GetCBox); // 参数构造
+        ~Node_Plus();                 // 新增：递归释放子节点
+        // Node_Plus(Node_Plus&other): 拷贝构造
+        //Node_Plus(const Node_Plus&other);
+        // Node_Plus(int Player,int ARRAY[LEN][LEN],bool GetCBox): 参数构造
+        //Node_Plus(int Player,int ARRAY[LEN][LEN],bool GetCBox);
+        // refresh_Avg_Value: 更新平均收益
+        // 输出: 返回新平均值
+        float refresh_Avg_Value();
+        // TAKE_UCB_Value: 获取UCB值
+        // 输入: Total-总次数
+        // 输出: 返回UCB值
+        float TAKE_UCB_Value(int Total);
+        // expand_UCT_Node_Plus: 扩展节点
+        // 输出: 返回新子节点指针
+        Node_Plus*expand_UCT_Node_Plus();
+            // 自定义内存管理：线程本地 Arena
+        static void* operator new(std::size_t size);
+        static void operator delete(void* ptr, std::size_t size);
+        static void operator delete(void* ptr) noexcept;
+    private:
+    /// 随机从一组可下边中选一条
+    POS RandomEdge(const std::vector<POS>& edges);
+
+    /// 标记除 keep 以外的所有可下边为等价边
+    void MarkEquivalenceEdges(const std::vector<POS>& edges, const POS& keep);
+
+    /// 处理棋盘四角的对称等价边
+    void MarkCornerEquivalence();
+
+    /// 真正从 Node_Plus_Moves 中移除已标记的等价边
+    void RemoveMarkedEdges();
+
 };
 #endif

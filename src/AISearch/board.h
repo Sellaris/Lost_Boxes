@@ -45,7 +45,7 @@ class Board{
     // TAKE__Free_dom: 得到自由度
     // 输入: x,y-坐标
     // 输出: 返回自由度
-    int TAKE__Free_dom(int x, int y);
+    int TAKE__Free_dom(int x, int y) const;
     int TAKE__Free_dom(POS l);
     // TAKE__Free_Edge_Num: 得到自由边数量
     int TAKE__Free_Edge_Num();
@@ -69,13 +69,14 @@ class Board{
     // END_TRUE: 判断游戏是否结束
     bool END_TRUE() const;
     // Public_Side_GET: 获得两个格子的公共边
-    POS Public_Side_GET(POS a, POS b);
+    POS Public_Side_GET(POS a, POS b) const;
     // TAKE_Double_LINK_Position: 查找doublecross制作方法
     POS TAKE_Double_LINK_Position(int Player);
     // TAKE__C_Box_Type_Limit: 限制版吃C型格
     bool TAKE__C_Box_Type_Limit(int Player, vector<POS> &pace, int total_moves);
     // TAKE_Num_of_FILTER_Move: 得到所有过滤可行边数量
     int TAKE_Num_of_FILTER_Move();
+    bool is_game_over();
 };
 // Odd_TRUE: 判断奇数
 bool Odd_TRUE(int num);

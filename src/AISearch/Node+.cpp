@@ -1,8 +1,11 @@
 #include "Node+.h"
-#include "UCT.h"
+#include "UCT+.h"
 #include "Estimate.h"
 #include <cmath>
 #include "NodeArena.h"
+#include "Board_Box.h"
+thread_local std::mt19937_64 rng_PLUS(std::chrono::system_clock::now().time_since_epoch().count()*_threadid);
+
 /**
  * 默认构造函数
  * 初始化棋盘状态，设置所有成员变量为默认值
@@ -59,7 +62,7 @@ Node_Plus::Node_Plus(int Player,int Array[LEN][LEN],bool GetCBox):Board(Array){
     bound_type = EXACT;
     best_move = {-1, -1};
     Board Win(_MAP_);
-    Board_Winner=TAKE_Winner_OF_Board(Win,-Player);
+    Board_Winner=TAKE_Winner_OF_Board_PLUS(Win,-Player);
     _Exist_Child=0;
     int F=Win.TAKE__Free_Edge_Num();
     if(F>=UCT__RANGE_FILTER){
@@ -69,6 +72,7 @@ Node_Plus::Node_Plus(int Player,int Array[LEN][LEN],bool GetCBox):Board(Array){
         Board_Box Test(_MAP_);
         Total_Child=Test.TAKE_Filter_Moves(Node_Plus_Moves);
     }
+    PruneEdges();  
 }
 
 /**
@@ -109,7 +113,7 @@ Node_Plus*Node_Plus::expand_UCT_Node_Plus(){
     CB.move(Owner,{Node_Plus_Moves[_Exist_Child].first,Node_Plus_Moves[_Exist_Child].second}, 0);
     Node_Plus*NEW_BOARD=new Node_Plus(-Owner,CB._MAP_,true);
     CB.setBoard(NEW_BOARD->_MAP_);
-    NEW_BOARD->_Avg_Value=(Evalution_TAKE_Filter_OF_MC(CB,-Owner,Owner)+13)/26.0f;
+    NEW_BOARD->_Avg_Value=(Evalution_TAKE_Filter_OF_MC_PLUS(CB,-Owner,Owner)+13)/26.0f;
     return NEW_BOARD;
 } 
 
@@ -133,3 +137,74 @@ void Node_Plus::operator delete(void* /*ptr*/) noexcept {
 
 // 构建期检查，确保节点大小不超过固定块
 static_assert(sizeof(Node_Plus) <= Arena::BLOCK_SIZE, "Node_Plus size exceeds Arena block size (2 KiB)");
+
+
+// ---------------- 等价裁边模块 ----------------
+POS Node_Plus::RandomEdge(const std::vector<POS>& edges) {
+    std::uniform_int_distribution<size_t> dist(0, edges.size() - 1);
+    return edges[ dist(rng_PLUS) ];
+}
+
+void Node_Plus::MarkEquivalenceEdges(const std::vector<POS>& edges, const POS& keep) {
+    for (auto& e : edges) {
+        if (e != keep) {
+            // 1 表示“等价边”，后面统一从候选中剔除
+            _MOVE_NUMBERS_[ e.first ][ e.second ] = 1;
+        }
+    }
+}
+
+void Node_Plus::MarkCornerEquivalence() {
+    // 棋盘四角对称边对 (假设棋盘 0–10)
+    const std::pair<POS,POS> corners[4] = {
+        {{0,1},{1,0}}, {{0,9},{1,10}}, {{10,1},{9,0}}, {{10,9},{9,10}}
+    };
+    for (auto& pr : corners) {
+        POS a = pr.first, b = pr.second;
+        bool hasA = false, hasB = false;
+        for (int i = 0; i < Total_Child; ++i) {
+            if (Node_Plus_Moves[i] == a) hasA = true;
+            if (Node_Plus_Moves[i] == b) hasB = true;
+        }
+        if (hasA && hasB) {
+            // 随机保留一条，另一条标记
+            POS keep = (rng_PLUS() & 1) ? a : b;
+            POS drop = (keep == a ? b : a);
+            _MOVE_NUMBERS_[ drop.first ][ drop.second ] = 1;
+        }
+    }
+}
+
+void Node_Plus::RemoveMarkedEdges() {
+    int w = 0;
+    for (int r = 0; r < Total_Child; ++r) {
+        POS e = Node_Plus_Moves[r];
+        if (_MOVE_NUMBERS_[ e.first ][ e.second ] == 0) {
+            Node_Plus_Moves[w++] = e;
+        }
+    }
+    Total_Child = w;
+}
+
+void Node_Plus::PruneEdges() {
+    // 1. 检测所有链和环
+    Board_Box_Plus detector(*this);
+    std::vector<std::vector<POS>> chains, cycles;
+    detector.GetChainsAndCycles(chains, cycles);
+
+    // 2. 对每条链/环保留一条，其余标记为等价边
+    for (auto& ch : chains) {
+        POS keep = RandomEdge(ch);
+        MarkEquivalenceEdges(ch, keep);
+    }
+    for (auto& cy : cycles) {
+        POS keep = RandomEdge(cy);
+        MarkEquivalenceEdges(cy, keep);
+    }
+
+    // 3. 特殊处理四角
+    MarkCornerEquivalence();
+
+    // 4. 从 Node_Plus_Moves 中移除所有被标记的等价边
+    RemoveMarkedEdges();
+}

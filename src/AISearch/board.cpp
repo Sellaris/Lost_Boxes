@@ -23,6 +23,9 @@ Board::Board() {
 	BOX_of_BLACK=BOX_of_WHITE=0;
 }
 
+bool Board::is_game_over(){
+	return BOX_of_BLACK+BOX_of_WHITE==25;
+}
 /**
  * @brief 带参数构造函数，根据数组初始化棋盘
  * @param Array 输入的棋盘数组
@@ -53,7 +56,7 @@ Board::Board(int Array[LEN][LEN]) {
  * @param y 纵坐标
  * @return int 自由度
  */
-int Board::TAKE__Free_dom(int x,int y) {
+int Board::TAKE__Free_dom(int x,int y) const {
 	int cnt=4;
 	if(_MAP_[x-1][y]==OCCed_LINE) --cnt;
 	if(_MAP_[x+1][y]==OCCed_LINE) --cnt;
@@ -544,7 +547,7 @@ bool Board::Safe_Edge_TRUE() {
  * @param b 坐标b
  * @return POS 公共边坐标
  */
-POS Board::Public_Side_GET(POS a,POS b) {
+POS Board::Public_Side_GET(POS a,POS b) const {
 	POS res={-1,-1};
 	POS A,B;
 	A.first=a.first*2-1,A.second=a.second*2-1;

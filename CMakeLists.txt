@@ -24,8 +24,28 @@ file(GLOB_RECURSE SOURCES
         src/*.c
         src/*.h
 )
-add_executable(dots_and_boxes ${SOURCES})
+file(GLOB_RECURSE COMMON_SOURCES
+src/AISearch/*.cpp
+src/Component/*.cpp
+src/AISearch/*.h
+src/Component/*.h
+src/AISearch/*.c
+src/Component/*.c
+# 其它不含main的cpp
+)
+add_executable(dots_and_boxes src/main.cpp ${COMMON_SOURCES})
+add_executable(Test src/Test.cpp ${COMMON_SOURCES})
 
+target_link_libraries(Test
+    PRIVATE
+        nowide::nowide
+        sfml-system sfml-window sfml-graphics
+)
+
+IF(WIN32)
+    target_include_directories(Test PUBLIC 3rdparty/SFML/include)
+ENDIF()
+target_include_directories(Test PUBLIC 3rdparty/nowide/include)
 target_link_libraries(dots_and_boxes
     PRIVATE
         nowide::nowide
