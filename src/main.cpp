@@ -1,6 +1,7 @@
 #include "../src/Component/cJSON.h"
 #include "../src/Component/Recorder.h"
 #include "AISearch/UCT.h"
+#include "AISearch/UCT+.h"
 #include "AISearch/board.h"
 #include "AISearch/Params.h"
 #include "Component/Time.h"
@@ -29,7 +30,7 @@ Time black_time;
 Time white_time;
 
 // 替换原有模式变量，使用枚举管理
-enum PlayerMode{HUMAN_MODE=0,AI_OLD_MODE=1,AI_TT_MODE=2,AI_NEW_MODE=3};
+enum PlayerMode{HUMAN_MODE=0,AI_OLD_MODE=1,AI_PLUS_MODE=2,AI_NEW_MODE=3,AI_TT_MODE=4};
 PlayerMode black_mode=HUMAN_MODE;
 PlayerMode white_mode=HUMAN_MODE;
 
@@ -72,7 +73,7 @@ void AIMove();
 // 主函数：程序入口，初始化窗口与资源，进入主事件循环
 int main(){
     SetConsoleOutputCP(65001); // 设置控制台输出为UTF-8
-    mainWindow.create(sf::VideoMode(1500,1000),L"Sela 点格棋",sf::Style::Default);
+    mainWindow.create(sf::VideoMode(1500,1000),L"Lost_Boxes",sf::Style::Default);
     mainWindow.setVerticalSyncEnabled(true);
     gameBoard=new Board;
     font.loadFromFile("res/LXGWWenKai-Bold.ttf");
@@ -311,18 +312,22 @@ void show_Information(){
 void showSetPlayer(){
     sf::Text first_human_text(L"玩家",font,40);
     sf::Text first_ai_old_text(L"UCT",font,40);
+    sf::Text first_ai_plus_text(L"UCT+",font,40);
     sf::Text first_ai_tt_text(L"UCT_TT",font,40);
     sf::Text first_ai_new_text(L"IDα-β",font,40);
     sf::Text second_human_text(L"玩家",font,40);
     sf::Text second_ai_old_text(L"UCT",font,40);
+    sf::Text second_ai_plus_text(L"UCT+",font,40);
     sf::Text second_ai_tt_text(L"UCT_TT",font,40);
     sf::Text second_ai_new_text(L"IDα-β",font,40);
     first_human_text.setPosition(1110,260);
     first_ai_old_text.setPosition(1110,260);
+    first_ai_plus_text.setPosition(1110,260);
     first_ai_tt_text.setPosition(1110,260);
     first_ai_new_text.setPosition(1110,260);
     second_human_text.setPosition(1310,260);
     second_ai_old_text.setPosition(1310,260);
+    second_ai_plus_text.setPosition(1310,260);
     second_ai_tt_text.setPosition(1310,260);
     second_ai_new_text.setPosition(1310,260);
 
@@ -337,6 +342,11 @@ void showSetPlayer(){
             first_button.setFillColor(sf::Color(1,87,155));
             mainWindow.draw(first_button);
             mainWindow.draw(first_ai_old_text);
+            break;
+        case AI_PLUS_MODE:
+            first_button.setFillColor(sf::Color(123,47,75));
+            mainWindow.draw(first_button);
+            mainWindow.draw(first_ai_plus_text);
             break;
         case AI_TT_MODE:
             first_button.setFillColor(sf::Color(142,36,170));
@@ -360,6 +370,11 @@ void showSetPlayer(){
             second_button.setFillColor(sf::Color(1,87,155));
             mainWindow.draw(second_button);
             mainWindow.draw(second_ai_old_text);
+            break;
+        case AI_PLUS_MODE:
+            second_button.setFillColor(sf::Color(123,47,75));
+            mainWindow.draw(second_button);
+            mainWindow.draw(second_ai_plus_text);
             break;
         case AI_TT_MODE:
             second_button.setFillColor(sf::Color(142,36,170));
@@ -435,6 +450,8 @@ void AIMove(){
                 work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else if(black_mode==AI_TT_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_UCT_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+            }else if(black_mode==AI_PLUS_MODE){
+                work = std::async(std::launch::async, Turn_Move_Game_PLUS, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else{
                 work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
@@ -444,6 +461,8 @@ void AIMove(){
                 work = std::async(std::launch::async, Turn_Move_Game, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else if(white_mode==AI_TT_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_UCT_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+            }else if(white_mode==AI_PLUS_MODE){
+                work = std::async(std::launch::async, Turn_Move_Game_PLUS, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else{
                 work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
@@ -478,9 +497,9 @@ void AIMove(){
 // 处理点击右侧按钮的事件逻辑
 void handleButtons(int x,int y){
     if(contains(first_button,x,y)){
-        black_mode = static_cast<PlayerMode>((black_mode + 1) % 4);
+        black_mode = static_cast<PlayerMode>((black_mode + 1) % 5);
     }else if(contains(second_button,x,y)){
-        white_mode = static_cast<PlayerMode>((white_mode + 1) % 4);
+        white_mode = static_cast<PlayerMode>((white_mode + 1) % 5);
     }else if(contains(GameButton,x,y)){
         if(game_begin==1){
             delete gameBoard;
