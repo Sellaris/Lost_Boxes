@@ -80,25 +80,61 @@ void Board_Box_Plus::GetChainsAndCycles(
     std::unordered_set<POS,custom_hash> used;
     for (int bx = 1; bx < LEN; bx += 2) {
         for (int by = 1; by < LEN; by += 2) {
-            if (CountDrawnEdges(bx,by) != 3) continue;
-            POS e0 = MissingEdge(bx, by);
-            if (used.count(e0)) continue;
-
-            std::vector<POS> chain;
-            int cx = bx, cy = by;
-            // 从端点箱开始
-            while (true) {
-                chain.push_back(e0);
-                used.insert(e0);
-                auto [nx, ny, e1] = TraceNext(cx, cy, e0);
-                // 只有当下一个格是“中间箱”才继续
-                if (nx<1||nx>=LEN||ny<1||ny>=LEN) break;
-                if (CountDrawnEdges(nx,ny) != 2) break;
-                if (! _board.is_Free_Line(e1)) break;
-                // 继续追踪
-                cx = nx; cy = ny; e0 = e1;
+            if (CountDrawnEdges(bx,by) != 2) continue;
+            // 找到所有缺口边
+            std::vector<POS> free_edges;
+            for (int d = 0; d < 4; ++d) {
+                int nr = bx + dr[d], nc = by + dc[d];
+                POS e = _board.Public_Side_GET({bx,by}, {nr, nc});
+                if (e.first >= 0 && _board.is_Free_Line(e)) {
+                    free_edges.push_back(e);
+                }
             }
-            if (!chain.empty()) chains.push_back(chain);
+            // 对每条缺口边，若未访问，则从该边出发追踪整条链
+            for (const POS& start_edge : free_edges) {
+                if (used.count(start_edge)) continue;
+                std::vector<POS> chain;
+                // 向两个方向追踪
+                for (int dir = 0; dir < 2; ++dir) {
+                    int cx = bx, cy = by;
+                    POS cur_edge = start_edge;
+                    int prev_bx = -1, prev_by = -1;
+                    while (true) {
+                        if (dir == 0) chain.push_back(cur_edge); // 正向加入
+                        else chain.insert(chain.begin(), cur_edge); // 反向插入头部
+                        used.insert(cur_edge);
+                        // 找到下一个格子
+                        int next_bx = cx, next_by = cy;
+                        if (cur_edge.first == cx) {
+                            next_bx = cx;
+                            next_by = (cur_edge.second == cy) ? cy : cur_edge.second + (cur_edge.second > cy ? -1 : 1);
+                        } else if (cur_edge.second == cy) {
+                            next_by = cy;
+                            next_bx = (cur_edge.first == cx) ? cx : cur_edge.first + (cur_edge.first > cx ? -1 : 1);
+                        }
+                        if (next_bx < 1 || next_bx >= LEN || next_by < 1 || next_by >= LEN) break;
+                        if (next_bx == prev_bx && next_by == prev_by) break;
+                        int deg = CountDrawnEdges(next_bx, next_by);
+                        if (deg != 2 && deg != 3) break;
+                        // 找下一个缺口边
+                        POS next_edge = {-1,-1};
+                        for (int nd = 0; nd < 4; ++nd) {
+                            int nnr = next_bx + dr[nd], nnc = next_by + dc[nd];
+                            POS e = _board.Public_Side_GET({next_bx, next_by}, {nnr, nnc});
+                            if (e.first < 0 || ! _board.is_Free_Line(e)) continue;
+                            if (e == cur_edge) continue;
+                            next_edge = e;
+                            break;
+                        }
+                        if (next_edge.first < 0) break;
+                        prev_bx = cx; prev_by = cy;
+                        cx = next_bx; cy = next_by;
+                        cur_edge = next_edge;
+                        if (deg == 2) break; // 到达端点
+                    }
+                }
+                if (!chain.empty()) chains.push_back(chain);
+            }
         }
     }
 

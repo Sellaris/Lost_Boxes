@@ -10,11 +10,11 @@ int main() {
     SetConsoleOutputCP(65001); // 设置控制台输出为UTF-8
 
     int uct_win = 0, uct_plus_win = 0, draw = 0;
-    int total_games = 10;
+    int total_games = 25;
 
     for (int round = 0; round < total_games * 2; ++round) {
         Board board;
-        int nowPlayer = (round < total_games) ? BLACK : WHITE; // 前10局UCT+先手，后10局UCT先手
+        int nowPlayer = (round %2) ? BLACK : WHITE; // 前10局UCT+先手，后10局UCT先手
         int status = 0;
         std::vector<POS> ai_steps;
         std::vector<STEPs> steps; // 用vector防止越界
