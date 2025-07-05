@@ -3,6 +3,7 @@
 #include "Estimate.h"
 #include <cmath>
 #include "NodeArena.h"
+#include <cstring>
 /**
  * 默认构造函数
  * 初始化棋盘状态，设置所有成员变量为默认值
@@ -16,6 +17,10 @@ Node::Node(){
     bound_type = EXACT;
     best_move = {-1, -1};
     _Avg_Value=0;
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));     
+
+
 }
 
 /**
@@ -57,7 +62,11 @@ Node::Node(int Player,int Array[LEN][LEN],bool GetCBox):Board(Array){
     search_depth = -1;
     score = 0;
     bound_type = EXACT;
-    best_move = {-1, -1};
+    best_move = {-1, -1};    
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));    
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));     
+
+
     Board Win(_MAP_);
     Board_Winner=TAKE_Winner_OF_Board(Win,-Player);
     _Exist_Child=0;

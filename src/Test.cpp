@@ -8,9 +8,9 @@
 
 int main() {    
     SetConsoleOutputCP(65001); // 设置控制台输出为UTF-8
-
-    int uct_win = 0, uct_plus_win = 0, draw = 0;
-    int total_games = 10;
+    int before=0;
+    int uct_win = 9, uct_plus_win = 11, draw = 0;
+    int total_games = 15;
 
     for (int round = 0; round < total_games * 2; ++round) {
         Board board;
@@ -73,13 +73,15 @@ int main() {
         } else if (!(round %2) && white_score > black_score) {
             std::cout << "UCT+胜" << std::endl;
         }
+        std::cout << "UCT+胜局: " << uct_plus_win << std::endl;
+        std::cout << "UCT胜局: " << uct_win << std::endl;
     }
 
     std::cout << "UCT+胜局: " << uct_plus_win << std::endl;
     std::cout << "UCT胜局: " << uct_win << std::endl;
     std::cout << "平局: " << draw << std::endl;
-    std::cout << "UCT+胜率: " << (uct_plus_win * 100.0 / (total_games * 2)) << "%" << std::endl;
-    std::cout << "UCT胜率: " << (uct_win * 100.0 / (total_games * 2)) << "%" << std::endl;
+    std::cout << "UCT+胜率: " << (uct_plus_win * 100.0 / (total_games * 2+before)) << "%" << std::endl;
+    std::cout << "UCT胜率: " << (uct_win * 100.0 / (total_games * 2+before)) << "%" << std::endl;
     system("pause");
     return 0;
 }

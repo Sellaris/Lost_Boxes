@@ -12,7 +12,7 @@
 #include <vector>
 #include "NodeArena.h"
 
-thread_local std::mt19937_64 rng_PLUS1(std::chrono::system_clock::now().time_since_epoch().count()*_threadid);
+thread_local std::mt19937_64 rng_PLUS1(std::chrono::system_clock::now().time_since_epoch().count()*_threadid*2);
 
 /**
  * 判断棋盘胜利者

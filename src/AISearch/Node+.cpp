@@ -4,6 +4,8 @@
 #include <cmath>
 #include "NodeArena.h"
 #include "Board_Box.h"
+#include <cstring>
+#include <assert.h>
 thread_local std::mt19937_64 rng_PLUS(std::chrono::system_clock::now().time_since_epoch().count()*_threadid);
 
 /**
@@ -19,6 +21,9 @@ Node_Plus::Node_Plus(){
     bound_type = EXACT;
     best_move = {-1, -1};
     _Avg_Value=0;
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));     
+
 }
 
 /**
@@ -61,6 +66,8 @@ Node_Plus::Node_Plus(int Player,int Array[LEN][LEN],bool GetCBox):Board(Array){
     score = 0;
     bound_type = EXACT;
     best_move = {-1, -1};
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));     
     Board Win(_MAP_);
     Board_Winner=TAKE_Winner_OF_Board_PLUS(Win,-Player);
     _Exist_Child=0;
@@ -148,7 +155,7 @@ POS Node_Plus::RandomEdge(const std::vector<POS>& edges) {
 void Node_Plus::MarkEquivalenceEdges(const std::vector<POS>& edges, const POS& keep) {
     for (auto& e : edges) {
         if (e != keep) {
-            // 1 表示“等价边”，后面统一从候选中剔除
+            // 1 表示"等价边"，后面统一从候选中剔除
             _MOVE_NUMBERS_[ e.first ][ e.second ] = 1;
         }
     }
@@ -159,18 +166,30 @@ void Node_Plus::MarkCornerEquivalence() {
     const std::pair<POS,POS> corners[4] = {
         {{0,1},{1,0}}, {{0,9},{1,10}}, {{10,1},{9,0}}, {{10,9},{9,10}}
     };
-    for (auto& pr : corners) {
+    
+    // 对应的角落格子坐标
+    const POS corner_boxes[4] = {
+        {1,1}, {1,9}, {9,1}, {9,9}
+    };
+    
+    for (int i = 0; i < 4; ++i) {
+        auto& pr = corners[i];
         POS a = pr.first, b = pr.second;
-        bool hasA = false, hasB = false;
-        for (int i = 0; i < Total_Child; ++i) {
-            if (Node_Plus_Moves[i] == a) hasA = true;
-            if (Node_Plus_Moves[i] == b) hasB = true;
-        }
-        if (hasA && hasB) {
-            // 随机保留一条，另一条标记
-            POS keep = (rng_PLUS() & 1) ? a : b;
-            POS drop = (keep == a ? b : a);
-            _MOVE_NUMBERS_[ drop.first ][ drop.second ] = 1;
+        POS corner_box = corner_boxes[i];
+        
+        // 检查角落格子的四条边是否都未被下过
+        if (TAKE__Free_dom(corner_box.first, corner_box.second) == 4) {
+            bool hasA = false, hasB = false;
+            for (int j = 0; j < Total_Child; ++j) {
+                if (Node_Plus_Moves[j] == a) hasA = true;
+                if (Node_Plus_Moves[j] == b) hasB = true;
+            }
+            if (hasA && hasB) {
+                // 随机保留一条，另一条标记
+                POS keep = (rng_PLUS() & 1) ? a : b;
+                POS drop = (keep == a ? b : a);
+                _MOVE_NUMBERS_[ drop.first ][ drop.second ] = 1;
+            }
         }
     }
 }
@@ -207,4 +226,6 @@ void Node_Plus::PruneEdges() {
 
     // 4. 从 Node_Plus_Moves 中移除所有被标记的等价边
     RemoveMarkedEdges();
+    assert(Total_Child > 0 && "PruneEdges() removed all candidate moves");
+
 }

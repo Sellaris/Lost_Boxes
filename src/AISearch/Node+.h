@@ -21,9 +21,9 @@ class Node_Plus:public Board{
         Bound bound_type; // TT中存储分数的类型(EXACT, LOWER, UPPER)
         POS best_move;    // TT中存储的最佳走法
         float _Avg_Value;
-        POS Node_Plus_Moves[60];
-        Node_Plus*_Child_NODES[60];  
-        
+        POS Node_Plus_Moves[60]{};
+        Node_Plus* _Child_NODES[60]{};   // ① 类内直接零初始化
+
           
         void PruneEdges();
         // Node_Plus(): 默认构造
