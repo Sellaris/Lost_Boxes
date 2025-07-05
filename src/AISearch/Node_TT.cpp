@@ -12,6 +12,7 @@
 #include <atomic>
 #include <iostream>
 #include <deque>
+#include <cstring>
 #include "NodeArena.h"
 // ---------------- 置换表相关全局结构 ----------------
 namespace {
@@ -47,6 +48,8 @@ Node_TT::Node_TT(){
     bound_type = EXACT;
     best_move = {-1, -1};
     _Avg_Value = 0.f;
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));    
 }
 
 Node_TT::Node_TT(const Node_TT& other) : Board(other) {
@@ -82,6 +85,8 @@ Node_TT::Node_TT(int Player, int ARRAY[LEN][LEN], bool GetCBox) : Board(ARRAY) {
     bound_type = EXACT;
     best_move = {-1, -1};
 
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));    
     Board Win(_MAP_);
     Board_Winner = TAKE_Winner_OF_Board(Win, -Player);
 

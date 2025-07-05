@@ -4,6 +4,7 @@
 #include <cmath>
 #include "NodeArena.h"
 #include "Board_Box.h"
+#include <cstring>
 thread_local std::mt19937_64 rng_PLUS(std::chrono::system_clock::now().time_since_epoch().count()*_threadid);
 
 /**
@@ -19,6 +20,8 @@ Node_Plus::Node_Plus(){
     bound_type = EXACT;
     best_move = {-1, -1};
     _Avg_Value=0;
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));    
 }
 
 /**
@@ -61,6 +64,8 @@ Node_Plus::Node_Plus(int Player,int Array[LEN][LEN],bool GetCBox):Board(Array){
     score = 0;
     bound_type = EXACT;
     best_move = {-1, -1};
+    std::memset(_MOVE_NUMBERS_, 0, sizeof(_MOVE_NUMBERS_));
+    std::memset(_Child_NODES,   0, sizeof(_Child_NODES));    
     Board Win(_MAP_);
     Board_Winner=TAKE_Winner_OF_Board_PLUS(Win,-Player);
     _Exist_Child=0;
