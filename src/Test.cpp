@@ -1,6 +1,8 @@
 #include "AISearch/board.h"
 #include "AISearch/UCT.h"
 #include "AISearch/UCT+.h"
+#include "AISearch/IDab_TT.h"
+#include "AISearch/UCT_TT.h"
 #include <vector>
 #include <iostream>
 #include <Windows.h>

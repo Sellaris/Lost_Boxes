@@ -453,7 +453,7 @@ void AIMove(){
             }else if(black_mode==AI_PLUS_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_PLUS, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else{
-                work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+                work = std::async(std::launch::async, Turn_Move_Game_ID_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
         }else if(nowPlayer==WHITE && white_mode!=HUMAN_MODE){
             ai_steps.clear();
@@ -464,7 +464,7 @@ void AIMove(){
             }else if(white_mode==AI_PLUS_MODE){
                 work = std::async(std::launch::async, Turn_Move_Game_PLUS, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }else{
-                work = std::async(std::launch::async, Turn_Move_Game_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
+                work = std::async(std::launch::async, Turn_Move_Game_ID_TT, std::ref(*gameBoard), std::ref(nowPlayer), &status, std::ref(ai_steps), top + 1);
             }
         }
     }

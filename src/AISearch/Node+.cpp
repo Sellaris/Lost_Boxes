@@ -190,26 +190,42 @@ void Node_Plus::RemoveMarkedEdges() {
     }
     Total_Child = w;
 }
-
 void Node_Plus::PruneEdges() {
-    // 1. 检测所有链和环
+    // 1. 检测链与环
     Board_Box_Plus detector(*this);
     std::vector<std::vector<POS>> chains, cycles;
     detector.GetChainsAndCycles(chains, cycles);
 
-    // 2. 对每条链/环保留一条，其余标记为等价边
+    // 2. 处理所有链
     for (auto& ch : chains) {
-        POS keep = RandomEdge(ch);
-        MarkEquivalenceEdges(ch, keep);
+        if (ch.size() == 2) {
+            // 一格短链
+            POS keep = RandomEdge(ch);
+            MarkEquivalenceEdges(ch, keep);
+        }
+        else if (ch.size() == 3) {
+            // 二格短链，仅边界两条等价
+            std::vector<POS> boundary = { ch.front(), ch.back() };
+            POS keep = RandomEdge(boundary);
+            MarkEquivalenceEdges(boundary, keep);
+            // 中间边 ch[1] 保留
+        }
+        else {
+            // 长链：所有边等价
+            POS keep = RandomEdge(ch);
+            MarkEquivalenceEdges(ch, keep);
+        }
     }
+
+    // 3. 处理所有环
     for (auto& cy : cycles) {
         POS keep = RandomEdge(cy);
         MarkEquivalenceEdges(cy, keep);
     }
 
-    // 3. 特殊处理四角
+    // 4. 四角等价
     MarkCornerEquivalence();
 
-    // 4. 从 Node_Plus_Moves 中移除所有被标记的等价边
+    // 5. 剔除所有被标记的等价边
     RemoveMarkedEdges();
 }

@@ -480,7 +480,7 @@ void Clear_IDab_TT() {
     std::cerr << "[置换表已清空]" << std::endl;
 }
 
-void Turn_Move_Game_TT(Board &CB, int Player, int *status, std::vector<POS> &pace, int total_moves) {
+void Turn_Move_Game_ID_TT(Board &CB, int Player, int *status, std::vector<POS> &pace, int total_moves) {
     Board Test = CB;
     int move_count = total_moves + pace.size();
     Test._TAKE_All_C_Boxes(Player, move_count, true);
