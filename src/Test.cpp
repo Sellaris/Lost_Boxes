@@ -14,7 +14,7 @@ int main() {
 
     for (int round = 0; round < total_games * 2; ++round) {
         Board board;
-        int nowPlayer = (round %2) ? BLACK : WHITE; // 前10局UCT+先手，后10局UCT先手
+        int nowPlayer = BLACK; 
         int status = 0;
         std::vector<POS> ai_steps;
         std::vector<STEPs> steps; // 用vector防止越界
