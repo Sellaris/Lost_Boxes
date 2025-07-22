@@ -106,7 +106,11 @@ int main(){
         showSidebar();
         mainWindow.display();
     }
-    
+    Game_Date ginfo=Game_Date(gameBoard->BOX_of_BLACK,gameBoard->BOX_of_WHITE,BlackName.c_str(),WhiteName.c_str());
+    ginfo.STEPsRecord(steps);
+    ginfo.RecordEnd();
+    ginfo.DataPrint();
+    ginfo.deleterecord();
     // 获取最终比分
     int black_score = gameBoard->BOX_of_BLACK;
     int white_score = gameBoard->BOX_of_WHITE;
